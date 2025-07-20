@@ -7,7 +7,7 @@ from .core import DataExtractor
 
 try:
     from pyspark.sql import SparkSession
-except Exception:  # pragma: no cover - handled in tests
+except (ImportError, ModuleNotFoundError):  # pragma: no cover - handled in tests
     SparkSession = None  # type: ignore
 
 
