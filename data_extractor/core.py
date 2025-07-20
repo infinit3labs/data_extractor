@@ -50,7 +50,7 @@ class DataExtractor:
         self.oracle_password = oracle_password
         self.output_base_path = output_base_path
         self.max_workers = max_workers or os.cpu_count()
-        self.use_global_spark_session = use_global_spark_session or bool(os.getenv("DATABRICKS_RUNTIME_VERSION"))
+        self.use_global_spark_session = use_global_spark_session or bool(os.getenv(DATABRICKS_RUNTIME_ENV_VAR))
         
         # JDBC connection properties
         self.jdbc_url = f"jdbc:oracle:thin:@{oracle_host}:{oracle_port}:{oracle_service}"
