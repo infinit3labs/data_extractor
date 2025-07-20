@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 import tempfile
 import os
+import configparser
 
 from data_extractor.core import DataExtractor
 from data_extractor.config import ConfigManager
@@ -71,6 +72,16 @@ class TestDataExtractor(unittest.TestCase):
         mock_builder.config.assert_any_call("spark.sql.adaptive.enabled", "true")
         mock_builder.config.assert_any_call("spark.sql.adaptive.coalescePartitions.enabled", "true")
         mock_builder.config.assert_any_call("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+
+    @patch('data_extractor.core.SparkSession')
+    def test_global_spark_session_usage(self, mock_spark_session):
+        """Ensure global Spark session is used when configured."""
+        mock_spark = Mock()
+        mock_spark_session.getActiveSession.return_value = mock_spark
+        extractor = DataExtractor(**self.test_config, use_global_spark_session=True)
+        session = extractor._get_spark_session()
+        self.assertEqual(session, mock_spark)
+        mock_spark_session.getActiveSession.assert_called_once()
         
     def test_table_config_validation(self):
         """Test table configuration validation."""
@@ -157,6 +168,22 @@ class TestConfigManager(unittest.TestCase):
             self.assertEqual(db_config['oracle_service'], 'env_service')
             self.assertEqual(db_config['oracle_user'], 'env_user')
             self.assertEqual(db_config['oracle_password'], 'env_password')
+
+    def test_use_global_spark_session_from_config(self):
+        """Ensure extraction config reads global spark setting."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'conf.ini')
+            config_manager = ConfigManager()
+            config_manager.create_sample_config_file(config_path)
+            parser = configparser.ConfigParser()
+            parser.read(config_path)
+            parser['extraction']['use_global_spark_session'] = 'true'
+            with open(config_path, 'w') as f:
+                parser.write(f)
+
+            manager = ConfigManager(config_path)
+            cfg = manager.get_extraction_config()
+            self.assertTrue(cfg['use_global_spark_session'])
 
 
 if __name__ == '__main__':

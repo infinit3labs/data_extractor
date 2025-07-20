@@ -64,6 +64,7 @@ class ConfigManager:
             config['max_workers'] = section.getint('max_workers', fallback=None)
             config['run_id'] = section.get('run_id', fallback=None)
             config['default_source'] = section.get('default_source', fallback='default')
+            config['use_global_spark_session'] = section.getboolean('use_global_spark_session', fallback=False)
             
         return config
         
@@ -116,7 +117,8 @@ class ConfigManager:
         # Extraction section
         sample_config['extraction'] = {
             'max_workers': '8',
-            'default_source': 'oracle_db'
+            'default_source': 'oracle_db',
+            'use_global_spark_session': 'false'
         }
         
         with open(config_path, 'w') as f:
@@ -199,5 +201,13 @@ class ConfigManager:
         
         # Merge with kwargs
         runtime_config = {**db_config, **extraction_config, **kwargs}
-        
+
+        if 'use_global_spark_session' in runtime_config:
+            value = runtime_config['use_global_spark_session']
+            runtime_config['use_global_spark_session'] = str(value).lower() in ('true', '1', 'yes')
+
+        env_override = os.getenv('USE_GLOBAL_SPARK_SESSION')
+        if env_override is not None:
+            runtime_config['use_global_spark_session'] = env_override.lower() in ('true', '1', 'yes')
+
         return runtime_config

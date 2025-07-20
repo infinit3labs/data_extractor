@@ -29,7 +29,8 @@ class DataExtractor:
                  oracle_user: str,
                  oracle_password: str,
                  output_base_path: str = "data",
-                 max_workers: Optional[int] = None):
+                 max_workers: Optional[int] = None,
+                 use_global_spark_session: bool = False):
         """
         Initialize the DataExtractor.
         
@@ -49,6 +50,7 @@ class DataExtractor:
         self.oracle_password = oracle_password
         self.output_base_path = output_base_path
         self.max_workers = max_workers or os.cpu_count()
+        self.use_global_spark_session = use_global_spark_session or bool(os.getenv("DATABRICKS_RUNTIME_VERSION"))
         
         # JDBC connection properties
         self.jdbc_url = f"jdbc:oracle:thin:@{oracle_host}:{oracle_port}:{oracle_service}"
@@ -78,18 +80,30 @@ class DataExtractor:
         
     def _get_spark_session(self) -> SparkSession:
         """
-        Get or create a thread-local Spark session.
-        Each thread gets its own Spark session for true parallel processing.
+        Get or create a Spark session.
+        Uses a single global session on Databricks or when configured.
+        Otherwise each thread gets its own session for true parallelism.
         """
+        if self.use_global_spark_session:
+            if not hasattr(self, "_global_spark"):
+                active = SparkSession.getActiveSession()
+                if active:
+                    self._global_spark = active
+                else:
+                    self._global_spark = SparkSession.builder.getOrCreate()
+            return self._global_spark
+
         if not hasattr(self._local, 'spark'):
-            self._local.spark = SparkSession.builder \
-                .appName(f"DataExtractor-{threading.current_thread().name}") \
-                .config("spark.jars.packages", "com.oracle.database.jdbc:ojdbc8:21.7.0.0") \
-                .config("spark.sql.adaptive.enabled", "true") \
-                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-                .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+            self._local.spark = (
+                SparkSession.builder
+                .appName(f"DataExtractor-{threading.current_thread().name}")
+                .config("spark.jars.packages", "com.oracle.database.jdbc:ojdbc8:21.7.0.0")
+                .config("spark.sql.adaptive.enabled", "true")
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
+                .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
                 .getOrCreate()
-                
+            )
+
         return self._local.spark
         
     def extract_table(self,
@@ -258,6 +272,11 @@ class DataExtractor:
         
     def cleanup_spark_sessions(self):
         """Clean up Spark sessions for all threads."""
-        if hasattr(self._local, 'spark'):
-            self._local.spark.stop()
-            del self._local.spark
+        if self.use_global_spark_session:
+            if hasattr(self, "_global_spark"):
+                self._global_spark.stop()
+                del self._global_spark
+        else:
+            if hasattr(self._local, 'spark'):
+                self._local.spark.stop()
+                del self._local.spark

@@ -262,6 +262,12 @@ See the `examples/` directory for:
 - Example table definitions
 - Common usage patterns
 
+### Databricks Usage
+
+The extractor can run on Databricks by reusing the cluster-provided Spark session.
+Use the helper in `data_extractor.databricks_job` or the demo script `examples/databricks_job_demo.py`.
+See [docs/DATABRICKS.md](docs/DATABRICKS.md) for full instructions.
+
 ## Troubleshooting
 
 ### Common Issues

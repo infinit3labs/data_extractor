@@ -112,6 +112,11 @@ Examples:
         help='Maximum number of worker threads (default: number of CPU cores)'
     )
     parser.add_argument(
+        '--use-global-spark',
+        action='store_true',
+        help='Use a single global Spark session (Databricks friendly)'
+    )
+    parser.add_argument(
         '--run-id',
         help='Unique run identifier (default: timestamp)'
     )
@@ -168,7 +173,8 @@ def extract_single_table(args) -> bool:
         oracle_user=args.user,
         oracle_password=args.password,
         output_base_path=args.output_path,
-        max_workers=args.max_workers
+        max_workers=args.max_workers,
+        use_global_spark_session=args.use_global_spark
     )
     
     # Extract table
@@ -197,7 +203,8 @@ def extract_multiple_tables(args) -> bool:
     # Get database configuration
     db_config = config_manager.get_runtime_config(
         output_base_path=args.output_path,
-        max_workers=args.max_workers
+        max_workers=args.max_workers,
+        use_global_spark_session=args.use_global_spark
     )
     
     # Override with command line arguments if provided
@@ -253,7 +260,8 @@ def extract_multiple_tables(args) -> bool:
         oracle_user=db_config['oracle_user'],
         oracle_password=db_config['oracle_password'],
         output_base_path=db_config.get('output_base_path', 'data'),
-        max_workers=db_config.get('max_workers')
+        max_workers=db_config.get('max_workers'),
+        use_global_spark_session=args.use_global_spark or db_config.get('use_global_spark_session', False)
     )
     
     # Extract tables in parallel
