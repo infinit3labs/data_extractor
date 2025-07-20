@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "data_extractor"
+version = "1.0.0"
+description = "Spark JDBC data extraction module for Oracle databases with parallel processing"
+authors = ["Data Engineering Team"]
+packages = [{ include = "data_extractor" }]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pyspark = ">=3.4.0"
+py4j = ">=0.10.9.7"
+cx_Oracle = ">=8.3.0"
+configparser = ">=5.3.0"
+python-dateutil = ">=2.8.2"
+pytz = ">=2023.3"
+pathlib = ">=1.0.1"
+argparse = ">=1.4.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

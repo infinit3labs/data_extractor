@@ -34,14 +34,14 @@ git clone https://github.com/infinit3labs/data_extractor.git
 cd data_extractor
 ```
 
-2. Install dependencies:
+2. Install dependencies using Poetry:
 ```bash
-pip install -r requirements.txt
+poetry install
 ```
 
-3. Install the package:
+3. Activate the virtual environment:
 ```bash
-pip install -e .
+poetry shell
 ```
 
 ## Prerequisites
@@ -297,6 +297,13 @@ pytest tests/
 2. Create a feature branch
 3. Add tests for new functionality
 4. Submit a pull request
+
+## Documentation
+
+Additional guides can be found in the [docs](docs/) directory:
+
+- [Getting Started](docs/GETTING_STARTED.md)
+- [Demo Script](docs/DEMO.md)
 
 ## License
 
