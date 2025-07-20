@@ -35,7 +35,7 @@ def run_job(config_path: str, tables_path: str, output_path: Optional[str] = Non
 
             spark = SparkSession.builder.getOrCreate()
             dbutils = DBUtils(spark)
-        except Exception:
+        except (ImportError, AttributeError):
             raise RuntimeError("dbutils is not available. This script must run on Databricks.")
 
     config_manager = ConfigManager(config_path)
