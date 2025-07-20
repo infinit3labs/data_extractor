@@ -14,7 +14,7 @@ configparser = ">=5.3.0"
 python-dateutil = ">=2.8.2"
 pytz = ">=2023.3"
 # Removed the redundant pathlib dependency
-argparse = ">=1.4.0"
+# Line removed as argparse is part of the Python standard library.
 
 [tool.poetry.scripts]
 data-extractor = "data_extractor.cli:main"
