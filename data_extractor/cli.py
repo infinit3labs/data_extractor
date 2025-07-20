@@ -10,6 +10,7 @@ from typing import List, Dict
 
 from .core import DataExtractor
 from .config import ConfigManager
+from .databricks import DatabricksDataExtractor, DatabricksConfigManager
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -22,8 +23,16 @@ Examples:
   # Extract using configuration files
   data-extractor --config config.ini --tables tables.json
   
+  # Extract using Databricks mode
+  data-extractor --databricks --config config.ini --tables tables.json
+  
   # Extract single table with incremental extraction
   data-extractor --host localhost --port 1521 --service XE --user hr --password secret \\
+                 --source-name oracle_db --table-name employees --schema hr \\
+                 --incremental-column last_modified
+  
+  # Extract single table in Databricks mode
+  data-extractor --databricks --host localhost --port 1521 --service XE --user hr --password secret \\
                  --source-name oracle_db --table-name employees --schema hr \\
                  --incremental-column last_modified
   
@@ -33,6 +42,9 @@ Examples:
   
   # Generate sample configuration files
   data-extractor --generate-config config.ini --generate-tables tables.json
+  
+  # Generate Databricks-specific configuration files
+  data-extractor --generate-databricks-config databricks_config.ini --generate-databricks-tables databricks_tables.json
         """
     )
     
@@ -100,6 +112,18 @@ Examples:
         help='Custom SQL query to execute instead of table extraction'
     )
     
+    # Databricks mode arguments
+    parser.add_argument(
+        '--databricks',
+        action='store_true',
+        help='Run in Databricks cluster mode (uses existing Spark session)'
+    )
+    parser.add_argument(
+        '--databricks-output-path',
+        help='Databricks output path (default: /dbfs/data)',
+        default='/dbfs/data'
+    )
+    
     # General arguments
     parser.add_argument(
         '--output-path',
@@ -124,6 +148,14 @@ Examples:
     parser.add_argument(
         '--generate-tables',
         help='Generate sample tables configuration file at specified path'
+    )
+    parser.add_argument(
+        '--generate-databricks-config',
+        help='Generate sample Databricks configuration file at specified path'
+    )
+    parser.add_argument(
+        '--generate-databricks-tables',
+        help='Generate sample Databricks tables configuration file at specified path'
     )
     parser.add_argument(
         '--verbose', '-v',
@@ -160,16 +192,30 @@ def extract_single_table(args) -> bool:
             print(f"Error: Invalid date format: {args.extraction_date}. Use YYYY-MM-DD format.")
             return False
             
-    # Create data extractor
-    extractor = DataExtractor(
-        oracle_host=args.host,
-        oracle_port=args.port,
-        oracle_service=args.service,
-        oracle_user=args.user,
-        oracle_password=args.password,
-        output_base_path=args.output_path,
-        max_workers=args.max_workers
-    )
+    # Determine output path
+    output_path = args.databricks_output_path if args.databricks else args.output_path
+    
+    # Create data extractor (Databricks or standard)
+    if args.databricks:
+        extractor = DatabricksDataExtractor(
+            oracle_host=args.host,
+            oracle_port=args.port,
+            oracle_service=args.service,
+            oracle_user=args.user,
+            oracle_password=args.password,
+            output_base_path=output_path,
+            max_workers=args.max_workers
+        )
+    else:
+        extractor = DataExtractor(
+            oracle_host=args.host,
+            oracle_port=args.port,
+            oracle_service=args.service,
+            oracle_user=args.user,
+            oracle_password=args.password,
+            output_base_path=output_path,
+            max_workers=args.max_workers
+        )
     
     # Extract table
     success = extractor.extract_table(
@@ -191,14 +237,18 @@ def extract_single_table(args) -> bool:
 
 def extract_multiple_tables(args) -> bool:
     """Extract multiple tables based on configuration files."""
-    # Load configuration
-    config_manager = ConfigManager(args.config)
-    
-    # Get database configuration
-    db_config = config_manager.get_runtime_config(
-        output_base_path=args.output_path,
-        max_workers=args.max_workers
-    )
+    # Load configuration (Databricks or standard)
+    if args.databricks:
+        config_manager = DatabricksConfigManager(args.config)
+        db_config = config_manager.get_databricks_database_config()
+        extraction_config = config_manager.get_databricks_extraction_config()
+    else:
+        config_manager = ConfigManager(args.config)
+        db_config = config_manager.get_runtime_config(
+            output_base_path=args.output_path,
+            max_workers=args.max_workers
+        )
+        extraction_config = {}
     
     # Override with command line arguments if provided
     if args.host:
@@ -211,6 +261,10 @@ def extract_multiple_tables(args) -> bool:
         db_config['oracle_user'] = args.user
     if args.password:
         db_config['oracle_password'] = args.password
+    if args.databricks:
+        db_config['output_base_path'] = args.databricks_output_path
+    elif args.output_path:
+        db_config['output_base_path'] = args.output_path
         
     # Validate required database configuration
     required_db_fields = ['oracle_host', 'oracle_service', 'oracle_user', 'oracle_password']
@@ -244,17 +298,28 @@ def extract_multiple_tables(args) -> bool:
         if errors:
             print(f"Error in table configuration {i}: {', '.join(errors)}")
             return False
-            
-    # Create data extractor
-    extractor = DataExtractor(
-        oracle_host=db_config['oracle_host'],
-        oracle_port=db_config.get('oracle_port', '1521'),
-        oracle_service=db_config['oracle_service'],
-        oracle_user=db_config['oracle_user'],
-        oracle_password=db_config['oracle_password'],
-        output_base_path=db_config.get('output_base_path', 'data'),
-        max_workers=db_config.get('max_workers')
-    )
+    
+    # Create data extractor (Databricks or standard)
+    if args.databricks:
+        extractor = DatabricksDataExtractor(
+            oracle_host=db_config['oracle_host'],
+            oracle_port=db_config.get('oracle_port', '1521'),
+            oracle_service=db_config['oracle_service'],
+            oracle_user=db_config['oracle_user'],
+            oracle_password=db_config['oracle_password'],
+            output_base_path=db_config.get('output_base_path', '/dbfs/data'),
+            max_workers=extraction_config.get('max_workers') or args.max_workers
+        )
+    else:
+        extractor = DataExtractor(
+            oracle_host=db_config['oracle_host'],
+            oracle_port=db_config.get('oracle_port', '1521'),
+            oracle_service=db_config['oracle_service'],
+            oracle_user=db_config['oracle_user'],
+            oracle_password=db_config['oracle_password'],
+            output_base_path=db_config.get('output_base_path', 'data'),
+            max_workers=db_config.get('max_workers')
+        )
     
     # Extract tables in parallel
     results = extractor.extract_tables_parallel(table_configs)
@@ -298,6 +363,23 @@ def main():
         config_manager = ConfigManager()
         config_manager.create_sample_tables_json(args.generate_tables)
         print(f"Sample tables configuration file created: {args.generate_tables}")
+        return
+        
+    if args.generate_databricks_config:
+        config_manager = DatabricksConfigManager()
+        config_manager.create_databricks_sample_config(args.generate_databricks_config)
+        print(f"Sample Databricks configuration file created: {args.generate_databricks_config}")
+        
+        if args.generate_databricks_tables:
+            config_manager.create_databricks_sample_tables_json(args.generate_databricks_tables)
+            print(f"Sample Databricks tables configuration file created: {args.generate_databricks_tables}")
+            
+        return
+        
+    if args.generate_databricks_tables:
+        config_manager = DatabricksConfigManager()
+        config_manager.create_databricks_sample_tables_json(args.generate_databricks_tables)
+        print(f"Sample Databricks tables configuration file created: {args.generate_databricks_tables}")
         return
         
     # Determine extraction mode
