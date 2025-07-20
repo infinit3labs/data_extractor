@@ -13,7 +13,7 @@ cx_Oracle = ">=8.3.0"
 configparser = ">=5.3.0"
 python-dateutil = ">=2.8.2"
 pytz = ">=2023.3"
-pathlib = ">=1.0.1"
+# Removed the redundant pathlib dependency
 argparse = ">=1.4.0"
 
 [tool.poetry.scripts]
