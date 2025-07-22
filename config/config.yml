@@ -13,6 +13,8 @@ extraction:
   max_workers: 8
   default_source: oracle_db
   run_id: null  # Auto-generated if null
+  jdbc_fetch_size: 10000
+  jdbc_num_partitions: 4
 
 # Databricks-specific configuration (optional)
 databricks:

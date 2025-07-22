@@ -26,7 +26,11 @@ class AppSettings(BaseSettings):
     run_id: Optional[str] = Field(default=None, alias="RUN_ID")
     default_source: str = Field(default="default", alias="DEFAULT_SOURCE")
     use_existing_spark: Optional[bool] = Field(default=None, alias="USE_EXISTING_SPARK")
-    unity_catalog_volume: Optional[str] = Field(default=None, alias="UNITY_CATALOG_VOLUME")
+    unity_catalog_volume: Optional[str] = Field(
+        default=None, alias="UNITY_CATALOG_VOLUME"
+    )
+    jdbc_fetch_size: int = Field(default=10000, alias="JDBC_FETCH_SIZE")
+    jdbc_num_partitions: int = Field(default=4, alias="JDBC_NUM_PARTITIONS")
 
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
 
@@ -97,6 +101,8 @@ class ConfigManager:
             "default_source",
             "use_existing_spark",
             "unity_catalog_volume",
+            "jdbc_fetch_size",
+            "jdbc_num_partitions",
         ]
         return {
             k: getattr(settings, k) for k in keys if getattr(settings, k) is not None
@@ -128,7 +134,12 @@ class ConfigManager:
                 "oracle_password": "your_password",
                 "output_base_path": "data",
             },
-            "extraction": {"max_workers": 8, "default_source": "oracle_db"},
+            "extraction": {
+                "max_workers": 8,
+                "default_source": "oracle_db",
+                "jdbc_fetch_size": 10000,
+                "jdbc_num_partitions": 4,
+            },
         }
         with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(sample_config, f)

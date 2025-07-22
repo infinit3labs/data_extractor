@@ -29,6 +29,8 @@ class DataExtractor:
         oracle_password: str,
         output_base_path: str = "data",
         max_workers: Optional[int] = None,
+        jdbc_fetch_size: int = 10000,
+        jdbc_num_partitions: int = 4,
     ):
         """
         Initialize the DataExtractor.
@@ -41,6 +43,8 @@ class DataExtractor:
             oracle_password: Database password
             output_base_path: Base path for output files
             max_workers: Maximum number of worker threads (default: CPU count)
+            jdbc_fetch_size: JDBC fetch size for Spark reads
+            jdbc_num_partitions: Number of partitions for Spark JDBC reads
         """
         self.oracle_host = oracle_host
         self.oracle_port = oracle_port
@@ -49,6 +53,8 @@ class DataExtractor:
         self.oracle_password = oracle_password
         self.output_base_path = output_base_path
         self.max_workers = max_workers or os.cpu_count()
+        self.jdbc_fetch_size = jdbc_fetch_size
+        self.jdbc_num_partitions = jdbc_num_partitions
 
         # JDBC connection properties
         self.jdbc_url = (
@@ -100,11 +106,13 @@ class DataExtractor:
             )
 
         return self._local.spark
-    
+
     def _is_first_run(self, source_name: str, table_name: str) -> bool:
         """Check if this is the first extraction for a table."""
         table_path = os.path.join(self.output_base_path, source_name, table_name)
-        return not os.path.exists(table_path) or not any(Path(table_path).rglob("*.parquet"))
+        return not os.path.exists(table_path) or not any(
+            Path(table_path).rglob("*.parquet")
+        )
 
     def extract_table(
         self,
@@ -140,8 +148,16 @@ class DataExtractor:
         thread_name = threading.current_thread().name
 
         # Auto-detect first run
-        if not is_full_extract and incremental_column and self._is_first_run(source_name, table_name):
-            self.logger.info("[%s] First run detected for %s, switching to full extract", thread_name, table_name)
+        if (
+            not is_full_extract
+            and incremental_column
+            and self._is_first_run(source_name, table_name)
+        ):
+            self.logger.info(
+                "[%s] First run detected for %s, switching to full extract",
+                thread_name,
+                table_name,
+            )
             is_full_extract = True
 
         try:
@@ -164,13 +180,15 @@ class DataExtractor:
             if custom_query:
                 query = custom_query
             else:
-                full_table_name = f"{schema_name}.{table_name}" if schema_name else table_name
-                
+                full_table_name = (
+                    f"{schema_name}.{table_name}" if schema_name else table_name
+                )
+
                 # Add flashback clause if enabled
                 flashback_clause = ""
                 if flashback_enabled and flashback_timestamp:
                     flashback_clause = f" AS OF TIMESTAMP TO_TIMESTAMP('{flashback_timestamp.strftime('%Y-%m-%d %H:%M:%S')}', 'YYYY-MM-DD HH24:MI:SS')"
-                
+
                 if is_full_extract or not incremental_column:
                     query = f"SELECT * FROM {full_table_name}{flashback_clause}"
                 else:
@@ -196,15 +214,18 @@ class DataExtractor:
                 .option("user", self.oracle_user)
                 .option("password", self.oracle_password)
                 .option("driver", "oracle.jdbc.driver.OracleDriver")
-                .option("fetchsize", "10000")
-                .option("numPartitions", "4")
+                .option("fetchsize", str(self.jdbc_fetch_size))
+                .option("numPartitions", str(self.jdbc_num_partitions))
                 .load()
             )
 
             # Check if data was extracted
             record_count = df.count()
             self.logger.info(
-                "[%s] Extracted %d records from %s", thread_name, record_count, table_name
+                "[%s] Extracted %d records from %s",
+                thread_name,
+                record_count,
+                table_name,
             )
 
             if record_count == 0:
@@ -245,6 +266,7 @@ class DataExtractor:
             return False
         except Exception as e:  # pylint: disable=broad-except
             import traceback
+
             self.logger.error(
                 "[%s] Unexpected error extracting table %s: %s\n%s",
                 thread_name,
@@ -266,8 +288,8 @@ class DataExtractor:
         """
         self.logger.info(
             "Starting parallel extraction of %d tables using %d workers",
-            len(table_configs), 
-            self.max_workers
+            len(table_configs),
+            self.max_workers,
         )
 
         results = {}
@@ -280,11 +302,12 @@ class DataExtractor:
                 # Validate required fields
                 source_name = config.get("source_name")
                 table_name = config.get("table_name")
-                
+
                 if not source_name or not table_name:
                     self.logger.error(
                         "Skipping table config missing required fields: source_name=%s, table_name=%s",
-                        source_name, table_name
+                        source_name,
+                        table_name,
                     )
                     continue
 
@@ -310,14 +333,17 @@ class DataExtractor:
 
                     if success:
                         self.logger.info(
-                            "Successfully completed extraction for table: %s", table_name
+                            "Successfully completed extraction for table: %s",
+                            table_name,
                         )
                     else:
                         self.logger.error("Failed extraction for table: %s", table_name)
 
                 except (ConnectionError, ValueError, RuntimeError) as e:
                     self.logger.error(
-                        "Exception during extraction of table %s: %s", table_name, str(e)
+                        "Exception during extraction of table %s: %s",
+                        table_name,
+                        str(e),
                     )
                     results[table_name] = False
 
