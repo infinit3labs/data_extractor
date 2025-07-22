@@ -216,7 +216,7 @@ class DatabricksDataExtractor:
                 extraction_date = datetime.now() - timedelta(days=1)
 
             self.logger.info(
-                f"[{thread_name}] Starting Databricks extraction for table: {table_name}"
+                "[%s] Starting Databricks extraction for table: %s", thread_name, table_name
             )
 
             # Get Spark session (use existing Databricks session)
@@ -245,7 +245,7 @@ class DatabricksDataExtractor:
                     AND {incremental_column} < TO_DATE('{end_date.strftime('%Y-%m-%d %H:%M:%S')}', 'YYYY-MM-DD HH24:MI:SS')
                     """
 
-            self.logger.info(f"[{thread_name}] Executing query: {query}")
+            self.logger.info("[%s] Executing query: %s", thread_name, query)
 
             # Extract data using Spark JDBC with Databricks optimizations
             df = (
@@ -265,12 +265,12 @@ class DatabricksDataExtractor:
             # Check if data was extracted
             record_count = df.count()
             self.logger.info(
-                f"[{thread_name}] Extracted {record_count} records from {table_name}"
+                "[%s] Extracted %d records from %s", thread_name, record_count, table_name
             )
 
             if record_count == 0:
                 self.logger.warning(
-                    f"[{thread_name}] No data found for table {table_name}"
+                    "[%s] No data found for table %s", thread_name, table_name
                 )
                 return True  # Not an error, just no data
 
@@ -297,20 +297,20 @@ class DatabricksDataExtractor:
                 Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
             # Save as Parquet with Databricks optimizations
-            self.logger.info(f"[{thread_name}] Saving to: {output_path}")
+            self.logger.info("[%s] Saving to: %s", thread_name, output_path)
 
             # Use coalesce based on data size for better performance in Databricks
             num_partitions = min(max(1, record_count // 100000), 10)
             df.coalesce(num_partitions).write.mode("overwrite").parquet(output_path)
 
             self.logger.info(
-                f"[{thread_name}] Successfully extracted table: {table_name}"
+                "[%s] Successfully extracted table: %s", thread_name, table_name
             )
             return True
 
-        except Exception as e:
+        except (ConnectionError, TimeoutError, RuntimeError) as e:
             self.logger.error(
-                f"[{thread_name}] Error extracting table {table_name}: {str(e)}"
+                "[%s] Error extracting table %s: %s", thread_name, table_name, str(e)
             )
             return False
 
@@ -327,7 +327,8 @@ class DatabricksDataExtractor:
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         self.logger.info(
-            f"Starting Databricks parallel extraction of {len(table_configs)} tables using {self.max_workers} workers"
+            "Starting Databricks parallel extraction of %d tables using %d workers",
+            len(table_configs), self.max_workers
         )
 
         results = {}
@@ -337,10 +338,17 @@ class DatabricksDataExtractor:
             future_to_table = {}
 
             for config in table_configs:
+                source_name = config.get("source_name")
+                table_name = config.get("table_name")
+                
+                if not source_name or not table_name:
+                    self.logger.error("Missing required source_name or table_name in config: %s", config)
+                    continue
+                    
                 future = executor.submit(
                     self.extract_table,
-                    source_name=config.get("source_name"),
-                    table_name=config.get("table_name"),
+                    source_name=source_name,
+                    table_name=table_name,
                     schema_name=config.get("schema_name"),
                     incremental_column=config.get("incremental_column"),
                     extraction_date=config.get("extraction_date"),
@@ -348,7 +356,7 @@ class DatabricksDataExtractor:
                     custom_query=config.get("custom_query"),
                     run_id=config.get("run_id"),
                 )
-                future_to_table[future] = config.get("table_name")
+                future_to_table[future] = table_name
 
             # Collect results as they complete
             for future in as_completed(future_to_table):
@@ -359,16 +367,16 @@ class DatabricksDataExtractor:
 
                     if success:
                         self.logger.info(
-                            f"Successfully completed Databricks extraction for table: {table_name}"
+                            "Successfully completed Databricks extraction for table: %s", table_name
                         )
                     else:
                         self.logger.error(
-                            f"Failed Databricks extraction for table: {table_name}"
+                            "Failed Databricks extraction for table: %s", table_name
                         )
 
-                except Exception as e:
+                except (ConnectionError, TimeoutError, RuntimeError) as e:
                     self.logger.error(
-                        f"Exception during Databricks extraction of table {table_name}: {str(e)}"
+                        "Exception during Databricks extraction of table %s: %s", table_name, str(e)
                     )
                     results[table_name] = False
 
@@ -376,7 +384,8 @@ class DatabricksDataExtractor:
         successful = sum(1 for success in results.values() if success)
         total = len(results)
         self.logger.info(
-            f"Databricks parallel extraction completed: {successful}/{total} tables successful"
+            "Databricks parallel extraction completed: %d/%d tables successful",
+            successful, total
         )
 
         return results
@@ -416,7 +425,7 @@ class DatabricksDataExtractor:
                     "default_parallelism": spark.sparkContext.defaultParallelism,
                 }
             )
-        except Exception as e:
+        except (ConnectionError, RuntimeError) as e:
             context["spark_error"] = str(e)
 
         return context
@@ -427,10 +436,6 @@ class DatabricksConfigManager(ConfigManager):
     Databricks-specific configuration manager.
     Extends the base ConfigManager with Databricks-specific functionality.
     """
-
-    def __init__(self, config_file: Optional[str] = None) -> None:
-        """Initialize Databricks configuration manager."""
-        super().__init__(config_file)
 
     def get_databricks_database_config(self) -> Dict[str, str]:
         """
@@ -498,7 +503,7 @@ class DatabricksConfigManager(ConfigManager):
             },
         }
 
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(sample_config, f)
 
     def create_databricks_sample_tables_json(self, json_path: str):
@@ -547,5 +552,5 @@ class DatabricksConfigManager(ConfigManager):
             },
         }
 
-        with open(json_path, "w") as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(sample_tables, f, indent=2)

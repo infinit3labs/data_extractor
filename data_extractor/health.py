@@ -15,9 +15,9 @@ import psutil
 
 try:
     import cx_Oracle
-
     ORACLE_AVAILABLE = True
 except ImportError:
+    cx_Oracle = None
     ORACLE_AVAILABLE = False
 
 
@@ -93,6 +93,10 @@ class HealthChecker:
             )
 
         try:
+            # Import cx_Oracle here to avoid unbound variable issues
+            if cx_Oracle is None:
+                raise ImportError("cx_Oracle not available")
+            
             # Create connection string
             dsn = cx_Oracle.makedsn(host, port, service_name=service)
 
@@ -134,27 +138,40 @@ class HealthChecker:
                     timestamp=datetime.now(),
                 )
 
-        except cx_Oracle.DatabaseError as e:
-            (error_obj,) = e.args
+        except ImportError:
             return HealthCheckResult(
                 name="database_connection",
                 status=HealthStatus.UNHEALTHY,
-                message=f"Database connection failed: {error_obj.message}",
+                message="cx_Oracle library not available",
                 duration_ms=(time.time() - start_time) * 1000,
                 timestamp=datetime.now(),
-                details={
-                    "error_code": error_obj.code,
-                    "error_message": error_obj.message,
-                },
+                details={"error": "Missing cx_Oracle dependency"},
             )
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError, ValueError, TypeError) as db_error:
+            # Handle database connection errors and other common issues
+            error_message = "Database connection failed"
+            details = {"error": str(db_error)}
+            
+            # Try to extract more specific error information if it's a DatabaseError
+            if hasattr(db_error, 'args') and db_error.args:
+                try:
+                    error_obj = db_error.args[0]
+                    if hasattr(error_obj, 'message'):
+                        error_message = f"Database connection failed: {error_obj.message}"
+                        error_code = getattr(error_obj, 'code', None)
+                        if error_code is not None:
+                            details["error_code"] = str(error_code)
+                        details["error_message"] = str(error_obj.message)
+                except (IndexError, AttributeError):
+                    pass
+            
             return HealthCheckResult(
                 name="database_connection",
                 status=HealthStatus.UNHEALTHY,
-                message=f"Database connection failed: {str(e)}",
+                message=error_message,
                 duration_ms=(time.time() - start_time) * 1000,
                 timestamp=datetime.now(),
-                details={"error": str(e)},
+                details=details,
             )
 
     def check_file_system(self, path: str) -> HealthCheckResult:
@@ -177,7 +194,7 @@ class HealthChecker:
 
             # Check write permissions
             test_file = os.path.join(path, f".health_check_{int(time.time())}")
-            with open(test_file, "w") as f:
+            with open(test_file, "w", encoding="utf-8") as f:
                 f.write("health_check")
 
             # Clean up test file
@@ -225,7 +242,7 @@ class HealthChecker:
                 timestamp=datetime.now(),
                 details={"error": "Permission denied"},
             )
-        except Exception as e:
+        except (OSError, IOError) as e:
             return HealthCheckResult(
                 name="file_system",
                 status=HealthStatus.UNHEALTHY,
@@ -291,7 +308,7 @@ class HealthChecker:
                 },
             )
 
-        except Exception as e:
+        except (OSError, AttributeError, ValueError) as e:
             return HealthCheckResult(
                 name="system_resources",
                 status=HealthStatus.UNHEALTHY,
@@ -337,7 +354,7 @@ class HealthChecker:
                 },
             )
 
-        except Exception as e:
+        except (OSError, ValueError, TypeError) as e:
             return HealthCheckResult(
                 name="application_status",
                 status=HealthStatus.UNHEALTHY,

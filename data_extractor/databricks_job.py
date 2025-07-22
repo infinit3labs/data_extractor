@@ -5,21 +5,22 @@ from __future__ import annotations
 import os
 from typing import Dict, Optional
 
-from pyspark.sql import SparkSession
-
 from .config import ConfigManager
 from .core import DataExtractor
 
 
 def _get_widget(name: str, default: Optional[str] = None) -> Optional[str]:
     """Retrieve a Databricks widget value or fall back to environment variables."""
-    try:
-        from pyspark.dbutils import DBUtils
-
-        dbutils = DBUtils(SparkSession.builder.getOrCreate())
-        return dbutils.widgets.get(name)
-    except Exception:
-        return os.getenv(name.upper(), default)
+    # In Databricks environment, dbutils is available globally
+    if "dbutils" in globals():
+        try:
+            return globals()["dbutils"].widgets.get(name)
+        except (AttributeError, ValueError):
+            # Widget doesn't exist or other widget error
+            pass
+    
+    # Fallback to environment variables if widget access fails
+    return os.getenv(name.upper(), default)
 
 
 def run_from_widgets() -> Dict[str, bool]:

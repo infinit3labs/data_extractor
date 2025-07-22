@@ -195,7 +195,7 @@ class TestDataExtractor(unittest.TestCase):
         # Mock Spark session that raises an exception
         mock_spark = Mock()
         mock_read = Mock()
-        mock_read.format.side_effect = RuntimeError("Connection failed")
+        mock_read.format.side_effect = Exception("Connection failed")
         mock_spark.read = mock_read
         
         mock_builder = Mock()
@@ -225,8 +225,8 @@ class TestDataExtractor(unittest.TestCase):
         mock_future = Mock()
         mock_future.result.return_value = True
         mock_executor_instance = Mock()
-        mock_executor_instance.__enter__ = Mock(return_value=mock_executor_instance)
-        mock_executor_instance.__exit__ = Mock(return_value=None)
+        mock_executor_instance.__enter__.return_value = mock_executor_instance
+        mock_executor_instance.__exit__.return_value = None
         mock_executor_instance.submit.return_value = mock_future
         mock_executor.return_value = mock_executor_instance
         
@@ -254,8 +254,8 @@ class TestDataExtractor(unittest.TestCase):
     def test_extract_tables_parallel_validation(self, mock_executor):
         """Test validation of table configs in parallel extraction."""
         mock_executor_instance = Mock()
-        mock_executor_instance.__enter__ = Mock(return_value=mock_executor_instance)
-        mock_executor_instance.__exit__ = Mock(return_value=None)
+        mock_executor_instance.__enter__.return_value = mock_executor_instance
+        mock_executor_instance.__exit__.return_value = None
         mock_executor.return_value = mock_executor_instance
         
         with patch("data_extractor.core.as_completed", return_value=[]):

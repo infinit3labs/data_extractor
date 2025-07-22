@@ -6,7 +6,7 @@ import argparse
 import os
 import sys
 from datetime import datetime
-from typing import List
+from typing import List, cast
 
 from .config import ConfigManager
 from .core import DataExtractor
@@ -263,7 +263,7 @@ def extract_multiple_tables(args: argparse.Namespace) -> bool:
 
     try:
         table_configs = config_manager.load_table_configs_from_json(args.tables)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         print(f"Error loading tables configuration: {e}")
         return False
 
@@ -297,7 +297,7 @@ def extract_multiple_tables(args: argparse.Namespace) -> bool:
             oracle_user=db_config["oracle_user"],
             oracle_password=db_config["oracle_password"],
             output_base_path=db_config.get("output_base_path", "data"),
-            max_workers=db_config.get("max_workers"),
+            max_workers=cast(int, db_config.get("max_workers")),
         )
 
     # Extract tables in parallel

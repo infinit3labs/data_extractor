@@ -15,18 +15,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class AppSettings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    oracle_host: str = Field("localhost", env="ORACLE_HOST")
-    oracle_port: str = Field("1521", env="ORACLE_PORT")
-    oracle_service: str = Field("XE", env="ORACLE_SERVICE")
-    oracle_user: str = Field("", env="ORACLE_USER")
-    oracle_password: str = Field("", env="ORACLE_PASSWORD")
-    output_base_path: str = Field("data", env="OUTPUT_BASE_PATH")
+    oracle_host: str = Field(default="localhost", alias="ORACLE_HOST")
+    oracle_port: str = Field(default="1521", alias="ORACLE_PORT")
+    oracle_service: str = Field(default="XE", alias="ORACLE_SERVICE")
+    oracle_user: str = Field(default="", alias="ORACLE_USER")
+    oracle_password: str = Field(default="", alias="ORACLE_PASSWORD")
+    output_base_path: str = Field(default="data", alias="OUTPUT_BASE_PATH")
 
-    max_workers: Optional[int] = Field(None, env="MAX_WORKERS")
-    run_id: Optional[str] = Field(None, env="RUN_ID")
-    default_source: str = Field("default", env="DEFAULT_SOURCE")
-    use_existing_spark: Optional[bool] = Field(None, env="USE_EXISTING_SPARK")
-    unity_catalog_volume: Optional[str] = Field(None, env="UNITY_CATALOG_VOLUME")
+    max_workers: Optional[int] = Field(default=None, alias="MAX_WORKERS")
+    run_id: Optional[str] = Field(default=None, alias="RUN_ID")
+    default_source: str = Field(default="default", alias="DEFAULT_SOURCE")
+    use_existing_spark: Optional[bool] = Field(default=None, alias="USE_EXISTING_SPARK")
+    unity_catalog_volume: Optional[str] = Field(default=None, alias="UNITY_CATALOG_VOLUME")
 
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
 
@@ -41,7 +41,7 @@ class ConfigManager:
         self.config_file = config_file
         self.config_data: Dict[str, Any] = {}
         if config_file and Path(config_file).exists():
-            with open(config_file, "r") as f:
+            with open(config_file, "r", encoding="utf-8") as f:
                 self.config_data = yaml.safe_load(f) or {}
 
     # ------------------------------------------------------------------
@@ -62,7 +62,7 @@ class ConfigManager:
     ) -> AppSettings:
         """Return merged application settings."""
 
-        env_settings = AppSettings()
+        env_settings = AppSettings()  # type: ignore
         result = env_settings.model_dump()
         env_fields = env_settings.model_fields_set
 
@@ -104,7 +104,7 @@ class ConfigManager:
 
     # ------------------------------------------------------------------
     def load_table_configs_from_json(self, json_file: str) -> List[Dict[str, Any]]:
-        with open(json_file, "r") as f:
+        with open(json_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         table_configs = []
@@ -130,7 +130,7 @@ class ConfigManager:
             },
             "extraction": {"max_workers": 8, "default_source": "oracle_db"},
         }
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(sample_config, f)
 
     # ------------------------------------------------------------------
@@ -160,7 +160,7 @@ class ConfigManager:
                 },
             ]
         }
-        with open(json_path, "w") as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(sample_tables, f, indent=2)
 
     # ------------------------------------------------------------------

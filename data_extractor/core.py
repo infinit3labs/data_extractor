@@ -100,6 +100,11 @@ class DataExtractor:
             )
 
         return self._local.spark
+    
+    def _is_first_run(self, source_name: str, table_name: str) -> bool:
+        """Check if this is the first extraction for a table."""
+        table_path = os.path.join(self.output_base_path, source_name, table_name)
+        return not os.path.exists(table_path) or not any(Path(table_path).rglob("*.parquet"))
 
     def extract_table(
         self,
@@ -111,6 +116,8 @@ class DataExtractor:
         is_full_extract: bool = False,
         custom_query: Optional[str] = None,
         run_id: Optional[str] = None,
+        flashback_enabled: bool = False,
+        flashback_timestamp: Optional[datetime] = None,
     ) -> bool:
         """
         Extract a single table from Oracle database and save as Parquet.
@@ -124,11 +131,18 @@ class DataExtractor:
             is_full_extract: Whether to perform full table extraction
             custom_query: Custom SQL query to use instead of table name
             run_id: Unique run identifier
+            flashback_enabled: Whether to use Oracle Flashback feature
+            flashback_timestamp: Timestamp for Flashback query (if enabled)
 
         Returns:
             bool: True if extraction was successful, False otherwise
         """
         thread_name = threading.current_thread().name
+
+        # Auto-detect first run
+        if not is_full_extract and incremental_column and self._is_first_run(source_name, table_name):
+            self.logger.info("[%s] First run detected for %s, switching to full extract", thread_name, table_name)
+            is_full_extract = True
 
         try:
             # Generate run_id if not provided
@@ -140,7 +154,7 @@ class DataExtractor:
                 extraction_date = datetime.now() - timedelta(days=1)
 
             self.logger.info(
-                f"[{thread_name}] Starting extraction for table: {table_name}"
+                "[%s] Starting extraction for table: %s", thread_name, table_name
             )
 
             # Get Spark session for this thread
@@ -150,12 +164,15 @@ class DataExtractor:
             if custom_query:
                 query = custom_query
             else:
-                full_table_name = (
-                    f"{schema_name}.{table_name}" if schema_name else table_name
-                )
-
+                full_table_name = f"{schema_name}.{table_name}" if schema_name else table_name
+                
+                # Add flashback clause if enabled
+                flashback_clause = ""
+                if flashback_enabled and flashback_timestamp:
+                    flashback_clause = f" AS OF TIMESTAMP TO_TIMESTAMP('{flashback_timestamp.strftime('%Y-%m-%d %H:%M:%S')}', 'YYYY-MM-DD HH24:MI:SS')"
+                
                 if is_full_extract or not incremental_column:
-                    query = f"SELECT * FROM {full_table_name}"
+                    query = f"SELECT * FROM {full_table_name}{flashback_clause}"
                 else:
                     # Incremental extraction for 24-hour window
                     start_date = extraction_date.replace(
@@ -164,12 +181,12 @@ class DataExtractor:
                     end_date = start_date + timedelta(days=1)
 
                     query = f"""
-                    SELECT * FROM {full_table_name}
+                    SELECT * FROM {full_table_name}{flashback_clause}
                     WHERE {incremental_column} >= TO_DATE('{start_date.strftime('%Y-%m-%d %H:%M:%S')}', 'YYYY-MM-DD HH24:MI:SS')
                     AND {incremental_column} < TO_DATE('{end_date.strftime('%Y-%m-%d %H:%M:%S')}', 'YYYY-MM-DD HH24:MI:SS')
                     """
 
-            self.logger.info(f"[{thread_name}] Executing query: {query}")
+            self.logger.info("[%s] Executing query: %s", thread_name, query)
 
             # Extract data using Spark JDBC
             df = (
@@ -187,12 +204,12 @@ class DataExtractor:
             # Check if data was extracted
             record_count = df.count()
             self.logger.info(
-                f"[{thread_name}] Extracted {record_count} records from {table_name}"
+                "[%s] Extracted %d records from %s", thread_name, record_count, table_name
             )
 
             if record_count == 0:
                 self.logger.warning(
-                    f"[{thread_name}] No data found for table {table_name}"
+                    "[%s] No data found for table %s", thread_name, table_name
                 )
                 return True  # Not an error, just no data
 
@@ -213,17 +230,17 @@ class DataExtractor:
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
             # Save as Parquet
-            self.logger.info(f"[{thread_name}] Saving to: {output_path}")
+            self.logger.info("[%s] Saving to: %s", thread_name, output_path)
             df.coalesce(1).write.mode("overwrite").parquet(output_path)
 
             self.logger.info(
-                f"[{thread_name}] Successfully extracted table: {table_name}"
+                "[%s] Successfully extracted table: %s", thread_name, table_name
             )
             return True
 
-        except Exception as e:
+        except (ConnectionError, ValueError, RuntimeError) as e:
             self.logger.error(
-                f"[{thread_name}] Error extracting table {table_name}: {str(e)}"
+                "[%s] Error extracting table %s: %s", thread_name, table_name, str(e)
             )
             return False
 
@@ -238,7 +255,9 @@ class DataExtractor:
             Dict mapping table names to extraction success status
         """
         self.logger.info(
-            f"Starting parallel extraction of {len(table_configs)} tables using {self.max_workers} workers"
+            "Starting parallel extraction of %d tables using %d workers",
+            len(table_configs), 
+            self.max_workers
         )
 
         results = {}
@@ -248,10 +267,21 @@ class DataExtractor:
             future_to_table = {}
 
             for config in table_configs:
+                # Validate required fields
+                source_name = config.get("source_name")
+                table_name = config.get("table_name")
+                
+                if not source_name or not table_name:
+                    self.logger.error(
+                        "Skipping table config missing required fields: source_name=%s, table_name=%s",
+                        source_name, table_name
+                    )
+                    continue
+
                 future = executor.submit(
                     self.extract_table,
-                    source_name=config.get("source_name"),
-                    table_name=config.get("table_name"),
+                    source_name=source_name,
+                    table_name=table_name,
                     schema_name=config.get("schema_name"),
                     incremental_column=config.get("incremental_column"),
                     extraction_date=config.get("extraction_date"),
@@ -259,7 +289,7 @@ class DataExtractor:
                     custom_query=config.get("custom_query"),
                     run_id=config.get("run_id"),
                 )
-                future_to_table[future] = config.get("table_name")
+                future_to_table[future] = table_name
 
             # Collect results as they complete
             for future in as_completed(future_to_table):
@@ -270,14 +300,14 @@ class DataExtractor:
 
                     if success:
                         self.logger.info(
-                            f"Successfully completed extraction for table: {table_name}"
+                            "Successfully completed extraction for table: %s", table_name
                         )
                     else:
-                        self.logger.error(f"Failed extraction for table: {table_name}")
+                        self.logger.error("Failed extraction for table: %s", table_name)
 
-                except Exception as e:
+                except (ConnectionError, ValueError, RuntimeError) as e:
                     self.logger.error(
-                        f"Exception during extraction of table {table_name}: {str(e)}"
+                        "Exception during extraction of table %s: %s", table_name, str(e)
                     )
                     results[table_name] = False
 
@@ -285,7 +315,7 @@ class DataExtractor:
         successful = sum(1 for success in results.values() if success)
         total = len(results)
         self.logger.info(
-            f"Parallel extraction completed: {successful}/{total} tables successful"
+            "Parallel extraction completed: %d/%d tables successful", successful, total
         )
 
         return results
