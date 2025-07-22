@@ -380,6 +380,8 @@ Leverages Databricks-optimized Spark configuration:
 - Fetch size optimized for Oracle (10,000 rows)
 - Default 4 partitions per table for parallel reading (standard mode)
 - Dynamic partition count in Databricks based on cluster parallelism
+- **Configurable JDBC parameters**: `jdbc_fetch_size` and `jdbc_num_partitions`
+  can be tuned via the configuration file. See [docs/CONFIGURABLE_JDBC.md](docs/CONFIGURABLE_JDBC.md).
 - Connection pooling via Spark JDBC
 
 ### Databricks-Specific Optimizations
