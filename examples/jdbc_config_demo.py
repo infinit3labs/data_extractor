@@ -18,8 +18,8 @@ def main() -> None:
     extractor = DataExtractor(
         **db_config,
         max_workers=extraction_config.get("max_workers"),
-        jdbc_fetch_size=extraction_config.get("jdbc_fetch_size", 10000),
-        jdbc_num_partitions=extraction_config.get("jdbc_num_partitions", 4),
+        jdbc_fetch_size=extraction_config.get("jdbc_fetch_size", AppSettings.DEFAULT_FETCH_SIZE),
+        jdbc_num_partitions=extraction_config.get("jdbc_num_partitions", AppSettings.DEFAULT_NUM_PARTITIONS),
     )
 
     print(
