@@ -7,10 +7,7 @@ This document provides comprehensive instructions for testing the data extractor
 ### 1. Platform Validation
 ```bash
 # Run comprehensive platform tests
-make test-platform
-
-# Or run individual test
-python scripts/test_platform.py
+poetry run pytest -v
 ```
 
 ### 2. Development Environment Setup

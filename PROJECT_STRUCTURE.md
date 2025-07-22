@@ -53,9 +53,7 @@ data_extractor/
 │   └── usage_examples.py             # General usage patterns
 │
 ├── scripts/                          # Development & testing scripts
-│   ├── init-oracle.sql               # Oracle test database setup
-│   ├── run_tests.sh                  # Comprehensive test runner
-│   └── test_platform.py              # Platform capability tests
+│   └── init-oracle.sql               # Oracle test database setup
 │
 ├── tests/                            # Unit tests
 │   ├── __init__.py

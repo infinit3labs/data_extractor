@@ -80,8 +80,8 @@ The platform now includes:
 # 1. Setup environment
 make setup-env
 
-# 2. Run platform tests
-make test-platform
+# 2. Run tests
+poetry run pytest -v
 
 # 3. Start full environment
 make docker-compose-up
@@ -90,12 +90,11 @@ make docker-compose-up
 ### Detailed Testing:
 ```bash
 # Run comprehensive test suite
-./scripts/run_tests.sh
+poetry run pytest -v
 
-# Or individual components:
-python scripts/test_platform.py    # Platform capabilities
-make ci                           # Code quality
-make docker-build                 # Container testing
+# Or run individual components
+make ci            # Code quality
+make docker-build  # Container testing
 ```
 
 The platform is now **enterprise-ready** with proper:
