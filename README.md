@@ -24,6 +24,7 @@ You can also write extracted tables directly to Unity Catalog volumes by setting
 - **Oracle Database Support**: Optimized for Oracle database connectivity
 - **Asynchronous Processing**: True asynchronous processing with dedicated Spark sessions per thread
 - **🚀 Databricks Integration**: Native support for Databricks cluster environments with optimized resource utilization
+- **Historical Query Support**: Optional Oracle Flashback queries for point-in-time snapshots
 
 ## Directory Structure
 
@@ -235,6 +236,20 @@ results = extractor.extract_tables_parallel(table_configs)
 
 # Cleanup
 extractor.cleanup_spark_sessions()
+```
+
+#### Flashback Queries
+
+```python
+from datetime import datetime
+extractor.extract_table(
+    source_name="oracle_db",
+    table_name="employees",
+    schema_name="hr",
+    is_full_extract=True,
+    flashback_enabled=True,
+    flashback_timestamp=datetime(2024, 1, 1, 12, 0, 0),
+)
 ```
 
 #### Databricks Mode

@@ -313,6 +313,14 @@ class DatabricksDataExtractor:
                 "[%s] Error extracting table %s: %s", thread_name, table_name, str(e)
             )
             return False
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(
+                "[%s] Unexpected error extracting table %s: %s",
+                thread_name,
+                table_name,
+                str(e),
+            )
+            return False
 
     def extract_tables_parallel(self, table_configs: List[Dict]) -> Dict[str, bool]:
         """

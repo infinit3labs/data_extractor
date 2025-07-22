@@ -23,3 +23,13 @@ poetry run python examples/demo.py --config config/config.yml --tables config/ta
 ```
 
 The script loads the configuration, runs parallel extractions and prints a summary of successes and failures.
+
+For Databricks widget usage run:
+```bash
+poetry run python examples/databricks_demo.py
+```
+
+To try Oracle Flashback queries use:
+```bash
+poetry run python examples/flashback_demo.py --config config/config.yml --tables config/tables.json --timestamp 2024-01-01T12:00:00
+```
