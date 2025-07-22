@@ -7,24 +7,28 @@ This document summarizes the comprehensive enhancement of the data extractor's s
 ## Key Achievements
 
 ### ✅ Comprehensive State Management
+
 - **Thread-safe operations** with RLock for concurrent access
 - **Persistent JSON storage** with atomic file operations and file locking
 - **Comprehensive progress tracking** for pipelines and individual extractions
 - **Detailed metadata tracking** including timestamps, durations, and restart counts
 
 ### ✅ Idempotent Operations
+
 - **Intelligent extraction checks** that verify file existence, integrity, and currency
 - **Automatic detection** of incomplete or corrupted extractions
 - **Window consistency validation** to ensure extractions use the same time windows
 - **Force reprocessing capabilities** for explicit re-extraction when needed
 
 ### ✅ Restart Capabilities
+
 - **Pipeline resumption** from persisted state across application restarts
 - **Automatic progress restoration** including completed, failed, and pending extractions
 - **Restart count tracking** for monitoring system reliability
 - **State checkpoint management** for reliable recovery
 
 ### ✅ 24-Hour Window Processing
+
 - **Fixed window extraction** from start of run date to end (24-hour period)
 - **Window consistency enforcement** across all tables in a pipeline
 - **Validation mechanisms** to detect and prevent window drift
@@ -34,13 +38,15 @@ This document summarizes the comprehensive enhancement of the data extractor's s
 
 ### 1. StateManager Class (`data_extractor/state_manager.py`)
 
-#### New Core Features:
+#### New Core Features
+
 - **Pipeline state tracking** with status, timing, and completion metrics
 - **Extraction state management** for individual table operations
 - **Thread-safe state persistence** with file locking and atomic operations
 - **Comprehensive progress reporting** with detailed status breakdowns
 
-#### New Methods Added:
+#### New Methods Added
+
 - `_verify_extraction_integrity()` - Validates file existence and integrity
 - `_is_extraction_window_current()` - Checks if extraction window matches current pipeline
 - `force_reprocess_table()` - Forces re-extraction of specific tables
@@ -51,13 +57,13 @@ This document summarizes the comprehensive enhancement of the data extractor's s
 
 ### 2. StatefulDataExtractor Class (`data_extractor/stateful_core.py`)
 
-#### Enhanced Features:
 - **Integrated state management** with automatic pipeline tracking
 - **Idempotent extraction logic** that checks existing state before processing
 - **Restart capability** with automatic state restoration
 - **Enhanced progress monitoring** with detailed status reporting
 
-#### New Public Methods:
+#### New Public Methods
+
 - `force_reprocess_table()` - Force reprocessing of specific tables
 - `reset_failed_extractions()` - Reset failed extractions for retry
 - `get_extraction_summary()` - Get detailed extraction statistics
@@ -66,7 +72,6 @@ This document summarizes the comprehensive enhancement of the data extractor's s
 
 ### 3. StatefulDatabricksDataExtractor Class (`data_extractor/stateful_databricks.py`)
 
-#### Enhanced Features:
 - **Databricks-optimized state management** with all core features
 - **Unity Catalog support** with enhanced state tracking
 - **Databricks-specific optimizations** for distributed processing
@@ -75,6 +80,7 @@ This document summarizes the comprehensive enhancement of the data extractor's s
 ## State Management Features
 
 ### Idempotency Implementation
+
 ```python
 # Intelligent extraction checking
 def is_extraction_needed(self, table_key: str) -> bool:
@@ -88,6 +94,7 @@ def is_extraction_needed(self, table_key: str) -> bool:
 ```
 
 ### Window Validation
+
 ```python
 # 24-hour window consistency
 def validate_extraction_window_consistency(self) -> Dict[str, Any]:
@@ -100,6 +107,7 @@ def validate_extraction_window_consistency(self) -> Dict[str, Any]:
 ```
 
 ### Progress Tracking
+
 ```python
 # Comprehensive progress monitoring
 def get_pipeline_progress(self) -> Dict[str, Any]:
@@ -113,6 +121,7 @@ def get_pipeline_progress(self) -> Dict[str, Any]:
 ```
 
 ### Failure Recovery
+
 ```python
 # Smart failure handling
 def reset_failed_extractions(self) -> int:
@@ -128,6 +137,7 @@ def reset_failed_extractions(self) -> int:
 ## Usage Patterns
 
 ### 1. Basic Pipeline with State Management
+
 ```python
 from data_extractor.stateful_core import StatefulDataExtractor
 
@@ -146,6 +156,7 @@ print(f"Completion: {progress['completion_rate']:.1f}%")
 ```
 
 ### 2. Restart Capability
+
 ```python
 # Application restart scenario
 extractor = StatefulDataExtractor(
@@ -158,6 +169,7 @@ results = extractor.extract_tables(table_configs)  # Skips completed tables
 ```
 
 ### 3. Force Reprocessing
+
 ```python
 # Force specific table reprocessing
 success = extractor.force_reprocess_table("oracle_prod.sales.customers")
@@ -166,6 +178,7 @@ if success:
 ```
 
 ### 4. Failure Recovery
+
 ```python
 # Reset all failed extractions for retry
 reset_count = extractor.reset_failed_extractions()
@@ -178,13 +191,15 @@ results = extractor.extract_tables(table_configs)
 ## Testing and Validation
 
 ### Test Coverage
+
 - **Comprehensive test suite** (`test_enhanced_state_management.py`)
 - **Usage examples** (`example_enhanced_state_management.py`)
 - **Edge case testing** for serialization, deserialization, and error handling
 - **Concurrency testing** for thread-safe operations
 
 ### Test Results
-```
+
+```text
 🔄 Testing Enhanced State Management
 ==================================================
 ✅ Pipeline creation and tracking
@@ -199,12 +214,14 @@ results = extractor.extract_tables(table_configs)
 ## Performance Considerations
 
 ### Optimizations
+
 - **Lazy loading** of state files to minimize I/O
 - **Thread-safe operations** with minimal lock contention
 - **Atomic file operations** to prevent corruption
 - **Efficient state serialization** with enum and datetime handling
 
 ### Monitoring
+
 - **Detailed timing metrics** for pipeline and extraction durations
 - **Progress tracking** with completion rates and status breakdowns
 - **Failure analysis** with error counts and retry mechanisms
@@ -213,13 +230,15 @@ results = extractor.extract_tables(table_configs)
 ## 24-Hour Window Processing
 
 ### Implementation
+
 - **Fixed window calculation** based on extraction date
 - **Automatic window enforcement** across all pipeline extractions
 - **Consistency validation** to prevent window drift
 - **Window metadata tracking** for audit and debugging
 
-### Example Window Processing:
-```
+### Example Window Processing
+
+```text
 Extraction Date: 2025-01-23
 Window Start: 2025-01-23 00:00:00
 Window End: 2025-01-24 00:00:00
@@ -229,7 +248,8 @@ Duration: Exactly 24 hours
 ## File Structure
 
 ### State Files
-```
+
+```text
 state/
 ├── pipeline_daily_extract_20250123.json    # Pipeline state
 ├── pipeline_daily_extract_20250122.json    # Previous pipeline
@@ -237,6 +257,7 @@ state/
 ```
 
 ### State File Format
+
 ```json
 {
   "pipeline": {
@@ -262,24 +283,28 @@ state/
 ## Benefits Delivered
 
 ### 1. Operational Excellence
+
 - **Reliable restart capabilities** minimize data loss during failures
 - **Comprehensive monitoring** provides visibility into extraction progress
 - **Intelligent retry mechanisms** handle transient failures automatically
 - **Detailed reporting** supports operational analysis and optimization
 
 ### 2. Data Integrity
+
 - **Idempotent operations** prevent duplicate extractions
 - **Window consistency** ensures data temporal alignment
 - **File integrity verification** detects corruption or incomplete extractions
 - **Audit trail** maintains detailed extraction history
 
 ### 3. Performance & Efficiency
+
 - **Smart skipping** of completed extractions reduces processing time
 - **Parallel processing support** with thread-safe state management
 - **Efficient state persistence** minimizes I/O overhead
 - **Optimized restart** resumes from exact point of failure
 
 ### 4. Developer Experience
+
 - **Simple API** with minimal code changes required
 - **Comprehensive examples** and documentation
 - **Flexible configuration** supports various deployment scenarios
@@ -288,7 +313,9 @@ state/
 ## Migration Guide
 
 ### For Existing Users
+
 1. **Replace imports**:
+
    ```python
    # Old
    from data_extractor.core import DataExtractor
@@ -298,6 +325,7 @@ state/
    ```
 
 2. **Add state configuration**:
+
    ```python
    extractor = StatefulDataExtractor(
        state_dir="state",      # State persistence directory
@@ -306,6 +334,7 @@ state/
    ```
 
 3. **Enable restart capabilities**:
+
    ```python
    # Same run_id enables automatic restart
    extractor = StatefulDataExtractor(
@@ -315,6 +344,7 @@ state/
    ```
 
 ### Configuration Changes
+
 - **No changes required** to existing table configurations
 - **State directory** can be configured per deployment
 - **Run IDs** should be unique per extraction cycle
@@ -323,6 +353,7 @@ state/
 ## Future Enhancements
 
 ### Potential Improvements
+
 - **Distributed state management** for multi-node deployments
 - **State compression** for large extraction metadata
 - **Advanced retry strategies** with exponential backoff
@@ -330,6 +361,7 @@ state/
 - **State migration tools** for schema changes
 
 ### Monitoring Integration
+
 - **Metrics export** for external monitoring systems
 - **Alerting integration** for failure detection
 - **Dashboard support** for real-time progress tracking
