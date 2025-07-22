@@ -6,6 +6,7 @@ A high-performance data extraction module that uses Spark JDBC to efficiently ex
 
 - **Parallel Processing**: Utilizes all available CPU cores with thread-based parallel extraction
 - **Incremental Extraction**: Supports incremental data extraction using specified columns with 24-hour daily windows
+4. Submit a pull request
 - **Full Table Extraction**: Supports complete table extraction when needed
 - **Spark JDBC Integration**: Leverages Apache Spark for efficient database connectivity and data processing
 - **Parquet Output**: Saves data in optimized Parquet format with organized directory structure
@@ -301,3 +302,6 @@ pytest tests/
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Databricks Usage
+See `docs/DATABRICKS.md` for running this module on a Databricks cluster.

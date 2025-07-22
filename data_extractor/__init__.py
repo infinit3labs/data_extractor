@@ -1,5 +1,4 @@
-"""
-Data Extractor Package
+"""Data Extractor Package
 A Spark JDBC data extraction module for Oracle databases with parallel processing capabilities.
 """
 
