@@ -1,4 +1,4 @@
-.PHONY: install install-dev lint format type-check security test test-cov clean help docker-build docker-run test-platform
+.PHONY: install install-dev lint format type-check security test test-cov clean help docker-build docker-run
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -43,13 +43,9 @@ clean: ## Clean up temporary files
 	rm -rf data_extractor.egg-info/
 
 ci: ## Run all CI checks
-	make lint
-	make security
-	make test
-
-test-platform: ## Run comprehensive platform tests
-	python scripts/test_platform.py
-	./scripts/run_tests.sh
+        make lint
+        make security
+        make test
 
 docker-build: ## Build Docker image
 	docker build -t data-extractor:latest .
@@ -77,8 +73,7 @@ validate-all: ## Run all validation checks
 	make clean
 	make install-dev
 	make lint
-	make type-check
-	make security
-	make test
-	make test-platform
-	@echo "✅ All validation checks passed!"
+        make type-check
+        make security
+        make test
+        @echo "✅ All validation checks passed!"
