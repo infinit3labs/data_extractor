@@ -160,7 +160,9 @@ class ConfigManager:
         for field in ["source_name", "table_name"]:
             if not table_config.get(field):
                 errors.append(f"Missing required field: {field}")
-        if not table_config.get("is_full_extract", False) and not table_config.get("incremental_column"):
+        is_incremental_extract = not table_config.get("is_full_extract", False)
+        missing_incremental_column = not table_config.get("incremental_column")
+        if is_incremental_extract and missing_incremental_column:
             errors.append("incremental_column is required for incremental extraction")
         return errors
 
