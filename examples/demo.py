@@ -11,7 +11,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         required=True,
-        help="Path to INI configuration file"
+        help="Path to YAML configuration file"
     )
     parser.add_argument(
         "--tables",

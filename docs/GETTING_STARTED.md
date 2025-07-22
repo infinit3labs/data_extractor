@@ -21,17 +21,17 @@ poetry shell
 Create sample configuration and tables files using the built in CLI:
 
 ```bash
-poetry run data-extractor --generate-config config.ini --generate-tables tables.json
+poetry run data-extractor --generate-config config.yml --generate-tables tables.json
 ```
 
-Edit `config.ini` and `tables.json` to match your environment.
+Edit `config.yml` and `tables.json` to match your environment.
 
 ## Running an Extraction
 
 Once configured, run the extractor using your configuration files:
 
 ```bash
-poetry run data-extractor --config config.ini --tables tables.json
+poetry run data-extractor --config config.yml --tables tables.json
 ```
 
 This command processes all tables defined in `tables.json` in parallel and saves Parquet files under the configured output path.
@@ -44,7 +44,7 @@ The module can also be used from Python code:
 from data_extractor.config import ConfigManager
 from data_extractor.core import DataExtractor
 
-config = ConfigManager('config.ini')
+config = ConfigManager('config.yml')
 params = config.get_runtime_config()
 
 extractor = DataExtractor(

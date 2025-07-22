@@ -66,23 +66,24 @@ poetry shell
 
 ## Configuration
 
-### Configuration File (config.ini)
+### Configuration File (config.yml)
 
 Create a configuration file with database connection details:
 
-```ini
-[database]
-oracle_host = localhost
-oracle_port = 1521
-oracle_service = XE
-oracle_user = your_username
-oracle_password = your_password
-output_base_path = data
-
-[extraction]
-max_workers = 8
-default_source = oracle_db
+```yaml
+database:
+  oracle_host: localhost
+  oracle_port: 1521
+  oracle_service: XE
+  oracle_user: your_username
+  oracle_password: your_password
+  output_base_path: data
+extraction:
+  max_workers: 8
+  default_source: oracle_db
 ```
+
+Environment variables automatically override any of the above settings. When running in Databricks, widget values take precedence over both the YAML file and environment variables.
 
 ### Tables Configuration (tables.json)
 
@@ -118,13 +119,13 @@ The data extractor provides a flexible CLI for various extraction scenarios:
 #### Generate Sample Configuration Files
 
 ```bash
-data-extractor --generate-config config.ini --generate-tables tables.json
+data-extractor --generate-config config.yml --generate-tables tables.json
 ```
 
 #### Extract Multiple Tables (Recommended for Production)
 
 ```bash
-data-extractor --config config.ini --tables tables.json
+data-extractor --config config.yml --tables tables.json
 ```
 
 ### Databricks Mode
@@ -133,7 +134,7 @@ The data extractor includes a specialized Databricks mode for running in Databri
 
 ```bash
 # Extract using Databricks mode
-data-extractor --databricks --config config.ini --tables tables.json
+data-extractor --databricks --config config.yml --tables tables.json
 
 # Extract single table in Databricks mode
 data-extractor --databricks --host localhost --service XE --user hr --password secret \
@@ -142,7 +143,7 @@ data-extractor --databricks --host localhost --service XE --user hr --password s
 
 # Extract to custom DBFS path
 data-extractor --databricks --databricks-output-path /dbfs/mnt/datalake/extracts \
-               --config config.ini --tables tables.json
+               --config config.yml --tables tables.json
 ```
 
 #### Databricks Configuration
@@ -150,7 +151,7 @@ data-extractor --databricks --databricks-output-path /dbfs/mnt/datalake/extracts
 Generate Databricks-specific configuration files:
 
 ```bash
-data-extractor --generate-databricks-config databricks_config.ini --generate-databricks-tables databricks_tables.json
+data-extractor --generate-databricks-config databricks_config.yml --generate-databricks-tables databricks_tables.json
 ```
 
 #### Extract Single Table with Incremental Extraction
@@ -397,7 +398,7 @@ See the `examples/` directory for:
 - Example table definitions
 - Common usage patterns
 - **Databricks-specific examples** (`databricks_usage_examples.py`)
-- **Databricks configuration templates** (`databricks_config.ini`, `databricks_tables.json`)
+- **Databricks configuration templates** (`databricks_config.yml`, `databricks_tables.json`)
 
 ## Databricks Deployment Guide
 

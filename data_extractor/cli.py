@@ -21,10 +21,10 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   # Extract using configuration files
-  data-extractor --config config.ini --tables tables.json
+  data-extractor --config config.yml --tables tables.json
   
   # Extract using Databricks mode
-  data-extractor --databricks --config config.ini --tables tables.json
+  data-extractor --databricks --config config.yml --tables tables.json
   
   # Extract single table with incremental extraction
   data-extractor --host localhost --port 1521 --service XE --user hr --password secret \\
@@ -41,17 +41,17 @@ Examples:
                  --source-name oracle_db --table-name departments --schema hr --full-extract
   
   # Generate sample configuration files
-  data-extractor --generate-config config.ini --generate-tables tables.json
+  data-extractor --generate-config config.yml --generate-tables tables.json
   
   # Generate Databricks-specific configuration files
-  data-extractor --generate-databricks-config databricks_config.ini --generate-databricks-tables databricks_tables.json
+  data-extractor --generate-databricks-config databricks_config.yml --generate-databricks-tables databricks_tables.json
         """
     )
     
     # Configuration file arguments
     parser.add_argument(
         '--config', '-c',
-        help='Path to configuration file (INI format)'
+        help='Path to configuration file (YAML format)'
     )
     parser.add_argument(
         '--tables', '-t',

@@ -6,7 +6,7 @@
 
 ```bash
 # Optimize worker threads based on your system
-data-extractor --max-workers 16 --config config.ini --tables tables.json
+data-extractor --max-workers 16 --config config.yml --tables tables.json
 ```
 
 ### Spark Configuration
@@ -131,7 +131,7 @@ def monitor_extraction():
 Enable verbose logging:
 
 ```bash
-data-extractor --verbose --config config.ini --tables tables.json
+data-extractor --verbose --config config.yml --tables tables.json
 ```
 
 Check Spark UI for query execution plans:
@@ -161,7 +161,7 @@ export ORACLE_HOME=/opt/oracle/instantclient
 export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
 
 # Run extraction
-data-extractor --config /etc/data-extractor/config.ini \
+data-extractor --config /etc/data-extractor/config.yml \
                --tables /etc/data-extractor/tables.json \
                --max-workers 32 \
                --output-path /data/extracts
@@ -227,7 +227,7 @@ def extract_tables_in_batches(extractor, table_configs, batch_size=25):
 export ORACLE_PASSWORD=$(vault kv get -field=password secret/oracle/prod)
 
 # Or use encrypted config files
-gpg --decrypt config.ini.gpg | data-extractor --config /dev/stdin --tables tables.json
+gpg --decrypt config.yml.gpg | data-extractor --config /dev/stdin --tables tables.json
 ```
 
 ### Network Security

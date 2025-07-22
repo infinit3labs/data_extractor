@@ -3,7 +3,7 @@ from data_extractor.databricks_job import run_from_widgets
 import os
 
 # Emulate widget values using environment variables
-os.environ["CONFIG_PATH"] = "examples/config.ini"
+os.environ["CONFIG_PATH"] = "examples/config.yml"
 os.environ["TABLES_PATH"] = "examples/tables.json"
 
 if __name__ == "__main__":

@@ -25,16 +25,14 @@ def run_from_widgets() -> Dict[str, bool]:
     """Run extraction using Databricks widgets for configuration."""
     config_path = _get_widget("config_path")
     tables_path = _get_widget("tables_path")
-    output_path = _get_widget("output_path", "data")
-    max_workers = _get_widget("max_workers")
-    run_id = _get_widget("run_id")
+    widget_params = {
+        "output_base_path": _get_widget("output_path", "data"),
+        "max_workers": int(_get_widget("max_workers")) if _get_widget("max_workers") else None,
+        "run_id": _get_widget("run_id"),
+    }
 
     manager = ConfigManager(config_path)
-    runtime = manager.get_runtime_config(
-        output_base_path=output_path,
-        max_workers=int(max_workers) if max_workers else None,
-        run_id=run_id,
-    )
+    runtime = manager.get_app_settings(widget_params).model_dump()
 
     table_configs = manager.load_table_configs_from_json(tables_path)
 
