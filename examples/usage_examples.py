@@ -9,11 +9,14 @@ from data_extractor.config import ConfigManager
 from data_extractor.core import DataExtractor
 
 
-def example_config_file_usage():
+from typing import Dict
+
+
+def example_config_file_usage() -> Dict[str, bool]:
     """Demonstrate loading configs from files."""
-    config_manager = ConfigManager("examples/config.yml")
+    config_manager = ConfigManager("config/config.yml")
     db_config = config_manager.get_database_config()
-    table_configs = config_manager.load_table_configs_from_json("examples/tables.json")
+    table_configs = config_manager.load_table_configs_from_json("config/tables.json")
     extractor = DataExtractor(
         oracle_host=db_config["oracle_host"],
         oracle_port=db_config.get("oracle_port", "1521"),
