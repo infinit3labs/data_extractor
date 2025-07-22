@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  data-extractor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        VERSION: ${VERSION:-1.0.0}
+    image: data-extractor:${VERSION:-latest}
+    container_name: data-extractor
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      # Oracle Database Configuration
+      - ORACLE_HOST=${ORACLE_HOST}
+      - ORACLE_PORT=${ORACLE_PORT:-1521}
+      - ORACLE_SERVICE=${ORACLE_SERVICE}
+      - ORACLE_USER=${ORACLE_USER}
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD}
+      
+      # Application Configuration
+      - OUTPUT_BASE_PATH=/app/data
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MAX_WORKERS=${MAX_WORKERS:-4}
+      
+      # Spark Configuration
+      - SPARK_DRIVER_MEMORY=${SPARK_DRIVER_MEMORY:-2g}
+      - SPARK_EXECUTOR_MEMORY=${SPARK_EXECUTOR_MEMORY:-2g}
+      - PYSPARK_PYTHON=python3
+    
+    # Volume mounts
+    volumes:
+      # Data output directory
+      - ./data:/app/data
+      # Log directory
+      - ./logs:/app/logs
+      # Configuration files (optional)
+      - ./config:/app/config:ro
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "from data_extractor.health import HealthChecker; hc = HealthChecker(); results, status = hc.run_all_checks(); exit(0 if status.value == 'healthy' else 1)"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /var/tmp:noexec,nosuid,size=50m
+    
+    # Network settings
+    networks:
+      - data-extractor-net
+    
+    # Override default command for different operations
+    # Uncomment the desired command:
+    
+    # For interactive shell:
+    # command: ["bash"]
+    # tty: true
+    # stdin_open: true
+    
+    # For single table extraction:
+    # command: [
+    #   "python", "-m", "data_extractor.cli",
+    #   "--host", "${ORACLE_HOST}",
+    #   "--service", "${ORACLE_SERVICE}",
+    #   "--user", "${ORACLE_USER}",
+    #   "--password", "${ORACLE_PASSWORD}",
+    #   "--source-name", "oracle_db",
+    #   "--table-name", "your_table",
+    #   "--schema", "your_schema",
+    #   "--incremental-column", "last_modified"
+    # ]
+    
+    # For batch extraction using config files:
+    # command: [
+    #   "python", "-m", "data_extractor.cli",
+    #   "--config", "/app/config/config.ini",
+    #   "--tables", "/app/config/tables.json"
+    # ]
+
+  # Optional: Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: data-extractor-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - data-extractor-net
+    profiles:
+      - monitoring
+
+  # Optional: Log aggregation with Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: data-extractor-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - data-extractor-net
+    profiles:
+      - monitoring
+
+networks:
+  data-extractor-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  grafana-data:
+    driver: local
