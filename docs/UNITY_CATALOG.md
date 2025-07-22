@@ -4,7 +4,7 @@ This guide explains how to extract Oracle tables directly into Unity Catalog vol
 
 ## Configuration
 
-Add a `unity_catalog_volume` entry in the `[databricks]` section of your INI file:
+Add a `unity_catalog_volume` entry in the `databricks` section of your YAML configuration file:
 
 ```ini
 [databricks]

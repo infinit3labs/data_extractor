@@ -9,8 +9,7 @@ This is a high-performance data extraction tool with **dual execution modes**: s
 - **`core.py`**: Standard DataExtractor with thread-local Spark sessions for true parallelism
 - **`databricks.py`**: DatabricksDataExtractor that reuses existing Spark sessions and handles DBFS paths
 - **`cli.py`**: Unified CLI supporting both modes via `--databricks` flag
-- **`config.py`**: INI-based configuration with environment variable fallbacks
-- **`settings.py`**: Pydantic-based validation for enterprise-grade configuration
+- **`config.py`**: YAML-based configuration with environment variable fallbacks and Pydantic validation
 
 ## Critical Patterns
 
@@ -87,7 +86,7 @@ data/source_name/table_name/yyyymm/dd/run_id.parquet
 ## Error Handling Conventions
 
 ### Database Connection
-- Validate connection params via Pydantic models in `settings.py`
+- Validate connection params via Pydantic models in `config.py`
 - Graceful fallback to environment variables
 - Thread-safe connection pooling per worker
 

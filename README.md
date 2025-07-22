@@ -9,7 +9,7 @@ The data extractor now includes **Databricks cluster mode** for optimized data e
 ### Unity Catalog Volumes
 
 You can also write extracted tables directly to Unity Catalog volumes by setting
-`unity_catalog_volume` in the `[databricks]` section of your INI file. See
+`unity_catalog_volume` in the `databricks` section of your YAML configuration file. See
 [`docs/UNITY_CATALOG.md`](docs/UNITY_CATALOG.md) for details and run the demo in
 `examples/unity_catalog_demo.py`.
 

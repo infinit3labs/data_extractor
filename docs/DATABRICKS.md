@@ -6,7 +6,7 @@ Databricks widgets or environment variables and runs the extraction using
 `DataExtractor`.
 
 ## Widgets
-- `config_path`  – path to the INI configuration file in DBFS
+- `config_path`  – path to the YAML configuration file in DBFS
 - `tables_path`  – path to the table configuration JSON file in DBFS
 - `output_path`  – base output directory (optional)
 - `max_workers`  – maximum worker threads (optional)
