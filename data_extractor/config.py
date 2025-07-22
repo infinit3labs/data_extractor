@@ -1,7 +1,6 @@
 """Configuration management using YAML and environment variables."""
 from __future__ import annotations
 
-import os
 import json
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +28,8 @@ class AppSettings(BaseSettings):
     unity_catalog_volume: Optional[str] = Field(None, env="UNITY_CATALOG_VOLUME")
 
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
+
+from .settings import AppSettings, DatabaseSettings, ExtractionSettings, validate_database_connection, validate_extraction_config
 
 
 class ConfigManager:
