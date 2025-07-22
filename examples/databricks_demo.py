@@ -1,6 +1,8 @@
 """Demonstration of running the Databricks job runner locally."""
-from data_extractor.databricks_job import run_from_widgets
+
 import os
+
+from data_extractor.databricks_job import run_from_widgets
 
 # Emulate widget values using environment variables
 os.environ["CONFIG_PATH"] = "examples/config.yml"
@@ -12,4 +14,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"Demo failed: {exc}")
         print("This is expected if no Oracle database is available.")
-

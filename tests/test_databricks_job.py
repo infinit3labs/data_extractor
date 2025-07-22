@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from data_extractor import databricks_job
 
@@ -38,5 +38,3 @@ class TestDatabricksJob(unittest.TestCase):
         self.assertEqual(result, {})
         mock_manager_cls.assert_called_with("c.yml")
         mock_extractor.extract_tables_parallel.assert_called_with([])
-
-

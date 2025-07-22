@@ -1,8 +1,9 @@
 """Databricks job entry point for the data extractor."""
+
 from __future__ import annotations
 
 import os
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 from pyspark.sql import SparkSession
 
@@ -13,7 +14,7 @@ from .core import DataExtractor
 def _get_widget(name: str, default: Optional[str] = None) -> Optional[str]:
     """Retrieve a Databricks widget value or fall back to environment variables."""
     try:
-        from pyspark.dbutils import DBUtils  # type: ignore
+        from pyspark.dbutils import DBUtils
 
         dbutils = DBUtils(SparkSession.builder.getOrCreate())
         return dbutils.widgets.get(name)
@@ -27,14 +28,20 @@ def run_from_widgets() -> Dict[str, bool]:
     tables_path = _get_widget("tables_path")
     widget_params = {
         "output_base_path": _get_widget("output_path", "data"),
-        "max_workers": int(max_workers_widget) if (max_workers_widget := _get_widget("max_workers")) else None,
+        "max_workers": (
+            int(max_workers_widget)
+            if (max_workers_widget := _get_widget("max_workers"))
+            else None
+        ),
         "run_id": _get_widget("run_id"),
     }
 
-    manager = ConfigManager(config_path)
+    manager = ConfigManager(config_path) if config_path else ConfigManager()
     runtime = manager.get_app_settings(widget_params).model_dump()
 
-    table_configs = manager.load_table_configs_from_json(tables_path)
+    table_configs = (
+        manager.load_table_configs_from_json(tables_path) if tables_path else []
+    )
 
     extractor = DataExtractor(
         oracle_host=runtime["oracle_host"],

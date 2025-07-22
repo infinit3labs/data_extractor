@@ -1,0 +1,23 @@
+# Data Extractor Configuration
+# Main configuration file for data extraction
+
+database:
+  oracle_host: localhost
+  oracle_port: 1521
+  oracle_service: XE
+  oracle_user: your_username
+  oracle_password: your_password
+  output_base_path: ./data
+
+extraction:
+  max_workers: 8
+  default_source: oracle_db
+  run_id: null  # Auto-generated if null
+
+# Databricks-specific configuration (optional)
+databricks:
+  cluster_mode: shared  # shared, single_user
+  log_level: INFO
+  output_format: parquet
+  unity_catalog_volume: null  # e.g., main.default.data_extracts
+  use_existing_spark: true

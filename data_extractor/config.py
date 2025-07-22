@@ -1,4 +1,5 @@
 """Configuration management using YAML and environment variables."""
+
 from __future__ import annotations
 
 import json
@@ -29,7 +30,8 @@ class AppSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
 
-from .settings import AppSettings, DatabaseSettings, ExtractionSettings, validate_database_connection, validate_extraction_config
+
+# Settings are now defined in this file
 
 
 class ConfigManager:
@@ -48,12 +50,16 @@ class ConfigManager:
     def _file_settings(self) -> Dict[str, Any]:
         data: Dict[str, Any] = {}
         for section in ("database", "extraction", "databricks"):
-            if section in self.config_data and isinstance(self.config_data[section], dict):
+            if section in self.config_data and isinstance(
+                self.config_data[section], dict
+            ):
                 data.update(self.config_data[section])
         return data
 
     # ------------------------------------------------------------------
-    def get_app_settings(self, overrides: Optional[Dict[str, Any]] = None) -> AppSettings:
+    def get_app_settings(
+        self, overrides: Optional[Dict[str, Any]] = None
+    ) -> AppSettings:
         """Return merged application settings."""
 
         env_settings = AppSettings()
@@ -92,7 +98,9 @@ class ConfigManager:
             "use_existing_spark",
             "unity_catalog_volume",
         ]
-        return {k: getattr(settings, k) for k in keys if getattr(settings, k) is not None}
+        return {
+            k: getattr(settings, k) for k in keys if getattr(settings, k) is not None
+        }
 
     # ------------------------------------------------------------------
     def load_table_configs_from_json(self, json_file: str) -> List[Dict[str, Any]]:

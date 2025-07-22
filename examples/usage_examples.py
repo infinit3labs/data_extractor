@@ -4,10 +4,9 @@ This script demonstrates how to use the data extractor programmatically
 and via the command line interface.
 """
 
-from datetime import datetime
 
-from data_extractor.core import DataExtractor
 from data_extractor.config import ConfigManager
+from data_extractor.core import DataExtractor
 
 
 def example_config_file_usage():
@@ -35,5 +34,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"Example failed: {exc}")
         print("This is expected if no Oracle database is available.")
-
-

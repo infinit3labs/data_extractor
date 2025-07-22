@@ -2,6 +2,7 @@
 """Demo extraction script using configuration files."""
 
 import argparse
+
 from data_extractor.config import ConfigManager
 from data_extractor.core import DataExtractor
 
@@ -9,14 +10,10 @@ from data_extractor.core import DataExtractor
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run demo extraction")
     parser.add_argument(
-        "--config",
-        required=True,
-        help="Path to YAML configuration file"
+        "--config", required=True, help="Path to YAML configuration file"
     )
     parser.add_argument(
-        "--tables",
-        required=True,
-        help="Path to JSON tables configuration"
+        "--tables", required=True, help="Path to JSON tables configuration"
     )
     return parser.parse_args()
 
@@ -32,7 +29,7 @@ def run_demo(config_path: str, tables_path: str) -> None:
         oracle_user=params["oracle_user"],
         oracle_password=params["oracle_password"],
         output_base_path=params.get("output_base_path", "data"),
-        max_workers=params.get("max_workers")
+        max_workers=params.get("max_workers"),
     )
 
     table_configs = config.load_table_configs_from_json(tables_path)

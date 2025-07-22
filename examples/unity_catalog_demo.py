@@ -2,7 +2,8 @@
 """Demo for writing to Unity Catalog volumes."""
 
 import argparse
-from data_extractor.databricks import DatabricksDataExtractor, DatabricksConfigManager
+
+from data_extractor.databricks import DatabricksConfigManager, DatabricksDataExtractor
 
 
 def parse_args():
