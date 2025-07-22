@@ -10,15 +10,12 @@ python = "^3.8"
 pyspark = ">=3.4.0"
 py4j = ">=0.10.9.7"
 cx_Oracle = ">=8.3.0"
-# Removed redundant configparser dependency
 python-dateutil = ">=2.8.2"
 pytz = ">=2023.3"
-# Line removed as pathlib is part of the Python standard library since Python 3.4.
-# Line removed as argparse is part of Python's standard library since 2.7 and does not need to be specified as a dependency.
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

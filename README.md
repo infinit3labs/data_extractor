@@ -527,3 +527,6 @@ Additional guides can be found in the [docs](docs/) directory:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Databricks Usage
+See `docs/DATABRICKS.md` for running this module on a Databricks cluster.
