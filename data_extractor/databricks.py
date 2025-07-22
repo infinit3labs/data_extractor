@@ -25,7 +25,7 @@ class DatabricksDataExtractor:
     utilizing the existing Spark session and Databricks-specific features.
     """
     
-    def __init__(self, 
+    def __init__(self,
                  oracle_host: str,
                  oracle_port: str,
                  oracle_service: str,
@@ -33,7 +33,8 @@ class DatabricksDataExtractor:
                  oracle_password: str,
                  output_base_path: str = "/dbfs/data",
                  max_workers: Optional[int] = None,
-                 use_existing_spark: bool = True):
+                 use_existing_spark: bool = True,
+                 unity_catalog_volume: Optional[str] = None):
         """
         Initialize the DatabricksDataExtractor.
         
@@ -46,6 +47,9 @@ class DatabricksDataExtractor:
             output_base_path: Base path for output files (default: /dbfs/data)
             max_workers: Maximum number of worker threads (default: CPU count / 2 for Databricks)
             use_existing_spark: Whether to use existing Spark session (recommended for Databricks)
+            unity_catalog_volume: Optional Unity Catalog volume path in the form
+                "catalog/schema/volume". When provided, output paths will be
+                written to this volume instead of ``output_base_path``.
         """
         self.oracle_host = oracle_host
         self.oracle_port = oracle_port
@@ -54,6 +58,7 @@ class DatabricksDataExtractor:
         self.oracle_password = oracle_password
         self.output_base_path = output_base_path
         self.use_existing_spark = use_existing_spark
+        self.unity_catalog_volume = unity_catalog_volume
         
         # In Databricks, use fewer workers to avoid overwhelming shared clusters
         self.max_workers = max_workers or max(1, os.cpu_count() // 2)
@@ -243,7 +248,11 @@ class DatabricksDataExtractor:
             year_month = extraction_date.strftime("%Y%m")
             day = extraction_date.strftime("%d")
             
-            base_output_path = self._normalize_output_path(self.output_base_path)
+            if self.unity_catalog_volume:
+                uc_base = f"/Volumes/{self.unity_catalog_volume.replace('.', '/')}"
+                base_output_path = self._normalize_output_path(uc_base)
+            else:
+                base_output_path = self._normalize_output_path(self.output_base_path)
             output_path = os.path.join(
                 base_output_path,
                 source_name,
@@ -348,7 +357,8 @@ class DatabricksDataExtractor:
             'hostname': os.environ.get('HOSTNAME'),
             'use_existing_spark': self.use_existing_spark,
             'max_workers': self.max_workers,
-            'output_base_path': self.output_base_path
+            'output_base_path': self.output_base_path,
+            'unity_catalog_volume': self.unity_catalog_volume
         }
         
         # Try to get Spark context information
@@ -405,7 +415,10 @@ class DatabricksConfigManager(ConfigManager):
             config['max_workers'] = max(1, os.cpu_count() // 2)
             
         config['use_existing_spark'] = True  # Always use existing Spark in Databricks
-        
+
+        if 'databricks' in self.config and self.config['databricks'].get('unity_catalog_volume'):
+            config['unity_catalog_volume'] = self.config['databricks'].get('unity_catalog_volume')
+
         return config
         
     def create_databricks_sample_config(self, config_path: str):
@@ -440,7 +453,8 @@ class DatabricksConfigManager(ConfigManager):
         sample_config['databricks'] = {
             'cluster_mode': 'shared',  # shared or single_user
             'log_level': 'INFO',
-            'output_format': 'parquet'
+            'output_format': 'parquet',
+            'unity_catalog_volume': 'main/default/volume'
         }
         
         with open(config_path, 'w') as f:

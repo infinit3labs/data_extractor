@@ -36,6 +36,7 @@ class TestDatabricksDataExtractor(unittest.TestCase):
         self.assertEqual(extractor.oracle_password, 'test_password')
         self.assertEqual(extractor.output_base_path, '/dbfs/test_output')
         self.assertTrue(extractor.use_existing_spark)
+        self.assertIsNone(extractor.unity_catalog_volume)
         self.assertTrue(extractor.max_workers > 0)
         
         # Test JDBC URL construction
@@ -71,8 +72,16 @@ class TestDatabricksDataExtractor(unittest.TestCase):
         
         # Test cloud storage paths (should remain unchanged regardless of environment)
         self.assertEqual(extractor._normalize_output_path('s3://bucket/path'), 's3://bucket/path')
-        self.assertEqual(extractor._normalize_output_path('abfss://container@account.dfs.core.windows.net/path'), 
+        self.assertEqual(extractor._normalize_output_path('abfss://container@account.dfs.core.windows.net/path'),
                         'abfss://container@account.dfs.core.windows.net/path')
+
+        # Unity Catalog volume path should resolve to /dbfs/Volumes/... when in Databricks
+        with patch.dict(os.environ, {'DATABRICKS_RUNTIME_VERSION': '12.2.x-scala2.12'}):
+            uc_extractor = DatabricksDataExtractor(**self.test_config, unity_catalog_volume='main/default/vol')
+            self.assertEqual(
+                uc_extractor._normalize_output_path('/Volumes/main/default/vol'),
+                '/dbfs/Volumes/main/default/vol'
+            )
         
     @patch('data_extractor.databricks.SparkSession')
     def test_spark_session_handling(self, mock_spark_session):
@@ -140,13 +149,18 @@ class TestDatabricksConfigManager(unittest.TestCase):
         
     def test_databricks_extraction_config(self):
         """Test Databricks-specific extraction configuration."""
-        config_manager = DatabricksConfigManager()
-        extraction_config = config_manager.get_databricks_extraction_config()
-        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'conf.ini')
+            with open(config_path, 'w') as f:
+                f.write('[databricks]\nunity_catalog_volume = main/demo/vol\n')
+            config_manager = DatabricksConfigManager(config_path)
+            extraction_config = config_manager.get_databricks_extraction_config()
+
         # Should use existing Spark session by default
         self.assertTrue(extraction_config.get('use_existing_spark'))
         # Should have conservative worker count
         self.assertGreater(extraction_config.get('max_workers', 0), 0)
+        self.assertEqual(extraction_config.get('unity_catalog_volume'), 'main/demo/vol')
         
     def test_databricks_sample_config_creation(self):
         """Test creation of Databricks sample configuration files."""
@@ -168,6 +182,7 @@ class TestDatabricksConfigManager(unittest.TestCase):
                 self.assertIn('/dbfs/data', config_content)
                 self.assertIn('use_existing_spark = true', config_content)
                 self.assertIn('[databricks]', config_content)
+                self.assertIn('unity_catalog_volume', config_content)
                 
             with open(tables_path, 'r') as f:
                 tables_content = f.read()
