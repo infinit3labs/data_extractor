@@ -13,10 +13,11 @@ class TestDatabricksJob(unittest.TestCase):
     @patch("data_extractor.databricks_job.DataExtractor")
     @patch("data_extractor.databricks_job.ConfigManager")
     def test_run_from_widgets(self, mock_manager_cls, mock_extractor_cls):
-        os.environ["CONFIG_PATH"] = "c.ini"
+        os.environ["CONFIG_PATH"] = "c.yml"
         os.environ["TABLES_PATH"] = "t.json"
         mock_manager = MagicMock()
-        mock_manager.get_runtime_config.return_value = {
+        settings_obj = MagicMock()
+        settings_obj.model_dump.return_value = {
             "oracle_host": "h",
             "oracle_port": "1521",
             "oracle_service": "s",
@@ -25,6 +26,7 @@ class TestDatabricksJob(unittest.TestCase):
             "output_base_path": "o",
             "max_workers": 1,
         }
+        mock_manager.get_app_settings.return_value = settings_obj
         mock_manager.load_table_configs_from_json.return_value = []
         mock_manager_cls.return_value = mock_manager
 
@@ -34,7 +36,7 @@ class TestDatabricksJob(unittest.TestCase):
 
         result = databricks_job.run_from_widgets()
         self.assertEqual(result, {})
-        mock_manager_cls.assert_called_with("c.ini")
+        mock_manager_cls.assert_called_with("c.yml")
         mock_extractor.extract_tables_parallel.assert_called_with([])
 
 

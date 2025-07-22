@@ -111,7 +111,7 @@ def databricks_config_file_example():
     print("\n=== Databricks Configuration File Usage Example ===")
     
     # Create Databricks configuration manager
-    config_manager = DatabricksConfigManager("examples/databricks_config.ini")
+    config_manager = DatabricksConfigManager("examples/databricks_config.yml")
     
     # Load Databricks-specific database configuration
     db_config = config_manager.get_databricks_database_config()
@@ -350,7 +350,7 @@ def main():
         
         print("\n=== CLI Usage Examples for Databricks ===")
         print("# Generate Databricks configuration files:")
-        print("data-extractor --generate-databricks-config databricks_config.ini --generate-databricks-tables databricks_tables.json")
+        print("data-extractor --generate-databricks-config databricks_config.yml --generate-databricks-tables databricks_tables.json")
         print()
         print("# Extract single table in Databricks mode:")
         print("data-extractor --databricks --host your_host --service XE --user hr --password secret \\")
@@ -358,11 +358,11 @@ def main():
         print("               --incremental-column last_modified")
         print()
         print("# Extract multiple tables using Databricks config files:")
-        print("data-extractor --databricks --config databricks_config.ini --tables databricks_tables.json")
+        print("data-extractor --databricks --config databricks_config.yml --tables databricks_tables.json")
         print()
         print("# Extract to custom DBFS path:")
         print("data-extractor --databricks --databricks-output-path /dbfs/mnt/datalake/extracts \\")
-        print("               --config databricks_config.ini --tables databricks_tables.json")
+        print("               --config databricks_config.yml --tables databricks_tables.json")
         
     except Exception as e:
         print(f"Example execution failed: {e}")

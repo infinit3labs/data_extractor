@@ -137,7 +137,7 @@ class TestDatabricksConfigManager(unittest.TestCase):
     def test_databricks_config_manager_initialization(self):
         """Test DatabricksConfigManager initialization."""
         config_manager = DatabricksConfigManager()
-        self.assertIsNotNone(config_manager.config)
+        self.assertIsInstance(config_manager.config_data, dict)
         
     def test_databricks_database_config(self):
         """Test Databricks-specific database configuration."""
@@ -150,9 +150,9 @@ class TestDatabricksConfigManager(unittest.TestCase):
     def test_databricks_extraction_config(self):
         """Test Databricks-specific extraction configuration."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = os.path.join(temp_dir, 'conf.ini')
+            config_path = os.path.join(temp_dir, 'conf.yml')
             with open(config_path, 'w') as f:
-                f.write('[databricks]\nunity_catalog_volume = main/demo/vol\n')
+                f.write('databricks:\n  unity_catalog_volume: main/demo/vol\n')
             config_manager = DatabricksConfigManager(config_path)
             extraction_config = config_manager.get_databricks_extraction_config()
 
@@ -165,7 +165,7 @@ class TestDatabricksConfigManager(unittest.TestCase):
     def test_databricks_sample_config_creation(self):
         """Test creation of Databricks sample configuration files."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = os.path.join(temp_dir, 'test_databricks_config.ini')
+            config_path = os.path.join(temp_dir, 'test_databricks_config.yml')
             tables_path = os.path.join(temp_dir, 'test_databricks_tables.json')
             
             config_manager = DatabricksConfigManager()
@@ -180,8 +180,8 @@ class TestDatabricksConfigManager(unittest.TestCase):
             with open(config_path, 'r') as f:
                 config_content = f.read()
                 self.assertIn('/dbfs/data', config_content)
-                self.assertIn('use_existing_spark = true', config_content)
-                self.assertIn('[databricks]', config_content)
+                self.assertIn('use_existing_spark: true', config_content)
+                self.assertIn('databricks:', config_content)
                 self.assertIn('unity_catalog_volume', config_content)
                 
             with open(tables_path, 'r') as f:
@@ -218,13 +218,13 @@ class TestDatabricksIntegration(unittest.TestCase):
         args = parser.parse_args([
             '--databricks',
             '--databricks-output-path', '/dbfs/custom',
-            '--generate-databricks-config', 'db_config.ini',
+            '--generate-databricks-config', 'db_config.yml',
             '--generate-databricks-tables', 'db_tables.json'
         ])
         
         self.assertTrue(args.databricks)
         self.assertEqual(args.databricks_output_path, '/dbfs/custom')
-        self.assertEqual(args.generate_databricks_config, 'db_config.ini')
+        self.assertEqual(args.generate_databricks_config, 'db_config.yml')
         self.assertEqual(args.generate_databricks_tables, 'db_tables.json')
         
     def test_databricks_mode_selection(self):

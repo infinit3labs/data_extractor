@@ -113,12 +113,12 @@ class TestConfigManager(unittest.TestCase):
     def test_config_manager_initialization(self):
         """Test ConfigManager initialization."""
         config_manager = ConfigManager()
-        self.assertIsNotNone(config_manager.config)
+        self.assertIsInstance(config_manager.config_data, dict)
         
     def test_sample_config_creation(self):
         """Test creation of sample configuration files."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = os.path.join(temp_dir, 'test_config.ini')
+            config_path = os.path.join(temp_dir, 'test_config.yml')
             tables_path = os.path.join(temp_dir, 'test_tables.json')
             
             config_manager = ConfigManager()

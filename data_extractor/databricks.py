@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 
+import yaml
+
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, lit
 
@@ -382,7 +384,7 @@ class DatabricksConfigManager(ConfigManager):
     Extends the base ConfigManager with Databricks-specific functionality.
     """
     
-    def __init__(self, config_file: Optional[str] = None):
+    def __init__(self, config_file: Optional[str] = None) -> None:
         """Initialize Databricks configuration manager."""
         super().__init__(config_file)
         
@@ -394,11 +396,8 @@ class DatabricksConfigManager(ConfigManager):
             Dict containing database connection parameters optimized for Databricks
         """
         config = self.get_database_config()
-        
-        # Set Databricks-specific defaults
-        if not config.get('output_base_path') or config.get('output_base_path') == 'data':
-            config['output_base_path'] = '/dbfs/data'
-            
+        if not config.get("output_base_path") or config.get("output_base_path") == "data":
+            config["output_base_path"] = "/dbfs/data"
         return config
         
     def get_databricks_extraction_config(self) -> Dict[str, Any]:
@@ -409,16 +408,15 @@ class DatabricksConfigManager(ConfigManager):
             Dict containing extraction parameters optimized for Databricks
         """
         config = self.get_extraction_config()
-        
-        # Set Databricks-specific defaults
-        if not config.get('max_workers'):
-            config['max_workers'] = max(1, os.cpu_count() // 2)
-            
-        config['use_existing_spark'] = True  # Always use existing Spark in Databricks
-
-        if 'databricks' in self.config and self.config['databricks'].get('unity_catalog_volume'):
-            config['unity_catalog_volume'] = self.config['databricks'].get('unity_catalog_volume')
-
+        if not config.get("max_workers"):
+            config["max_workers"] = max(1, os.cpu_count() // 2)
+        config["use_existing_spark"] = True
+        if (
+            "databricks" in self.config_data
+            and isinstance(self.config_data["databricks"], dict)
+            and self.config_data["databricks"].get("unity_catalog_volume")
+        ):
+            config["unity_catalog_volume"] = self.config_data["databricks"].get("unity_catalog_volume")
         return config
         
     def create_databricks_sample_config(self, config_path: str):
@@ -428,37 +426,30 @@ class DatabricksConfigManager(ConfigManager):
         Args:
             config_path: Path where to create the sample config file
         """
-        import configparser
-        
-        sample_config = configparser.ConfigParser()
-        
-        # Database section with Databricks-specific notes
-        sample_config['database'] = {
-            'oracle_host': 'your_oracle_host',
-            'oracle_port': '1521',
-            'oracle_service': 'your_service_name',
-            'oracle_user': 'your_username',
-            'oracle_password': 'your_password',
-            'output_base_path': '/dbfs/data'  # Databricks DBFS path
+        sample_config = {
+            "database": {
+                "oracle_host": "your_oracle_host",
+                "oracle_port": "1521",
+                "oracle_service": "your_service_name",
+                "oracle_user": "your_username",
+                "oracle_password": "your_password",
+                "output_base_path": "/dbfs/data",
+            },
+            "extraction": {
+                "max_workers": 4,
+                "default_source": "oracle_db",
+                "use_existing_spark": True,
+            },
+            "databricks": {
+                "cluster_mode": "shared",
+                "log_level": "INFO",
+                "output_format": "parquet",
+                "unity_catalog_volume": "main/default/volume",
+            },
         }
-        
-        # Extraction section optimized for Databricks
-        sample_config['extraction'] = {
-            'max_workers': '4',  # Conservative for shared clusters
-            'default_source': 'oracle_db',
-            'use_existing_spark': 'true'  # Use Databricks Spark session
-        }
-        
-        # Databricks-specific section
-        sample_config['databricks'] = {
-            'cluster_mode': 'shared',  # shared or single_user
-            'log_level': 'INFO',
-            'output_format': 'parquet',
-            'unity_catalog_volume': 'main/default/volume'
-        }
-        
-        with open(config_path, 'w') as f:
-            sample_config.write(f)
+
+        with open(config_path, "w") as f:
+            yaml.safe_dump(sample_config, f)
             
     def create_databricks_sample_tables_json(self, json_path: str):
         """

@@ -1,7 +1,9 @@
 pyspark>=3.4.0
 py4j>=0.10.9.7
 cx_Oracle>=8.3.0
-configparser>=5.3.0
+pydantic>=2.7
+pydantic-settings>=2.0
+PyYAML>=6.0
 python-dateutil>=2.8.2
 pytz>=2023.3
 pathlib>=1.0.1

@@ -12,7 +12,7 @@ from data_extractor.config import ConfigManager
 
 def example_config_file_usage():
     """Demonstrate loading configs from files."""
-    config_manager = ConfigManager("examples/config.ini")
+    config_manager = ConfigManager("examples/config.yml")
     db_config = config_manager.get_database_config()
     table_configs = config_manager.load_table_configs_from_json("examples/tables.json")
     extractor = DataExtractor(
