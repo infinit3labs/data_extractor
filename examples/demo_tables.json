@@ -1,0 +1,38 @@
+{
+  "tables": [
+    {
+      "source_name": "oracle_db",
+      "table_name": "employees",
+      "schema_name": "hr",
+      "incremental_column": "last_modified",
+      "extraction_date": "2023-12-01",
+      "is_full_extract": false
+    },
+    {
+      "source_name": "oracle_db",
+      "table_name": "departments",
+      "schema_name": "hr",
+      "is_full_extract": true
+    },
+    {
+      "source_name": "oracle_db",
+      "table_name": "orders",
+      "schema_name": "sales",
+      "incremental_column": "order_date",
+      "is_full_extract": false
+    },
+    {
+      "source_name": "oracle_db",
+      "table_name": "customers",
+      "schema_name": "sales",
+      "incremental_column": "updated_timestamp",
+      "is_full_extract": false
+    },
+    {
+      "source_name": "oracle_db",
+      "table_name": "products",
+      "schema_name": "inventory",
+      "is_full_extract": true
+    }
+  ]
+}
