@@ -244,11 +244,13 @@ class DataExtractor:
             )
             return False
         except Exception as e:  # pylint: disable=broad-except
+            import traceback
             self.logger.error(
-                "[%s] Unexpected error extracting table %s: %s",
+                "[%s] Unexpected error extracting table %s: %s\n%s",
                 thread_name,
                 table_name,
                 str(e),
+                traceback.format_exc(),
             )
             return False
 
