@@ -5,8 +5,8 @@ import os
 from data_extractor.databricks_job import run_from_widgets
 
 # Emulate widget values using environment variables
-os.environ["CONFIG_PATH"] = "examples/config.yml"
-os.environ["TABLES_PATH"] = "examples/tables.json"
+os.environ["CONFIG_PATH"] = "config/config.yml"
+os.environ["TABLES_PATH"] = "config/tables.json"
 
 if __name__ == "__main__":
     try:
