@@ -27,7 +27,7 @@ def run_from_widgets() -> Dict[str, bool]:
     tables_path = _get_widget("tables_path")
     widget_params = {
         "output_base_path": _get_widget("output_path", "data"),
-        "max_workers": int(_get_widget("max_workers")) if _get_widget("max_workers") else None,
+        "max_workers": int(max_workers_widget) if (max_workers_widget := _get_widget("max_workers")) else None,
         "run_id": _get_widget("run_id"),
     }
 
