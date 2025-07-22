@@ -63,4 +63,4 @@ results = extractor.extract_tables_parallel(table_configs)
 extractor.cleanup_spark_sessions()
 ```
 
-Consult `examples/` for additional scripts and configuration samples.
+Consult `examples/` for additional scripts and configuration samples. For historical snapshots using Oracle Flashback see [docs/FLASHBACK.md](FLASHBACK.md).
