@@ -242,7 +242,14 @@ class SqlServerDataExtractor:
                         self.logger.error("Failed extraction for table: %s", table_name)
                 except (ConnectionError, ValueError, RuntimeError) as exc:
                     self.logger.error(
-                        "Exception during extraction of table %s: %s",
+                        "Known exception during extraction of table %s: %s",
+                        table_name,
+                        str(exc),
+                    )
+                    results[table_name] = False
+                except Exception as exc:
+                    self.logger.error(
+                        "Unexpected exception during extraction of table %s: %s",
                         table_name,
                         str(exc),
                     )
