@@ -541,6 +541,7 @@ Additional guides can be found in the [docs](docs/) directory:
 
 - [Getting Started](docs/GETTING_STARTED.md)
 - [Demo Script](docs/DEMO.md)
+- [Development Roadmap](ROADMAP.md) - Future development plans and priorities
 
 ## License
 
