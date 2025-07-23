@@ -177,12 +177,15 @@ class SqlServerDataExtractor:
                 "[%s] Successfully extracted table: %s", thread_name, table_name
             )
             return True
-        except (ConnectionError, ValueError, RuntimeError) as exc:
+        except (ConnectionError, ValueError, RuntimeError, 
+                py4j.protocol.Py4JJavaError, pyspark.sql.utils.AnalysisException) as exc:
             self.logger.error(
-                "[%s] Error extracting table %s: %s", thread_name, table_name, str(exc)
+                "[%s] Known error extracting table %s: %s", thread_name, table_name, str(exc)
             )
             return False
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception as exc:
+            if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                raise
             import traceback
 
             self.logger.error(
