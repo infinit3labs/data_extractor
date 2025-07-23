@@ -11,6 +11,7 @@ from typing import List, cast
 from .config import ConfigManager
 from .core import DataExtractor
 from .databricks import DatabricksConfigManager, DatabricksDataExtractor
+from .sqlserver import SqlServerDataExtractor
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -64,6 +65,19 @@ Examples:
     parser.add_argument("--service", help="Oracle service name")
     parser.add_argument("--user", help="Database username")
     parser.add_argument("--password", help="Database password")
+
+    parser.add_argument(
+        "--sqlserver",
+        action="store_true",
+        help="Use SQL Server instead of Oracle",
+    )
+    parser.add_argument("--sqlserver-host", help="SQL Server host")
+    parser.add_argument(
+        "--sqlserver-port", help="SQL Server port (default: 1433)", default="1433"
+    )
+    parser.add_argument("--sqlserver-database", help="SQL Server database name")
+    parser.add_argument("--sqlserver-user", help="SQL Server username")
+    parser.add_argument("--sqlserver-password", help="SQL Server password")
 
     # Single table extraction arguments
     parser.add_argument("--source-name", help="Name of the data source")
@@ -136,9 +150,18 @@ Examples:
 def validate_single_table_args(args: argparse.Namespace) -> List[str]:
     """Validate arguments for single table extraction."""
     errors = []
-
-    required_args = ["host", "service", "user", "password", "source_name", "table_name"]
-    for arg in required_args:
+    if args.sqlserver:
+        required = [
+            "sqlserver_host",
+            "sqlserver_database",
+            "sqlserver_user",
+            "sqlserver_password",
+            "source_name",
+            "table_name",
+        ]
+    else:
+        required = ["host", "service", "user", "password", "source_name", "table_name"]
+    for arg in required:
         if not getattr(args, arg.replace("-", "_")):
             errors.append(f"--{arg} is required for single table extraction")
 
@@ -167,7 +190,17 @@ def extract_single_table(args: argparse.Namespace) -> bool:
     output_path = args.databricks_output_path if args.databricks else args.output_path
 
     # Create data extractor (Databricks or standard)
-    if args.databricks:
+    if args.sqlserver:
+        extractor = SqlServerDataExtractor(
+            sqlserver_host=args.sqlserver_host,
+            sqlserver_port=args.sqlserver_port,
+            sqlserver_database=args.sqlserver_database,
+            sqlserver_user=args.sqlserver_user,
+            sqlserver_password=args.sqlserver_password,
+            output_base_path=output_path,
+            max_workers=args.max_workers,
+        )
+    elif args.databricks:
         extractor = DatabricksDataExtractor(
             oracle_host=args.host,
             oracle_port=args.port,
@@ -209,7 +242,11 @@ def extract_single_table(args: argparse.Namespace) -> bool:
 def extract_multiple_tables(args: argparse.Namespace) -> bool:
     """Extract multiple tables based on configuration files."""
     # Load configuration (Databricks or standard)
-    if args.databricks:
+    if args.sqlserver:
+        config_manager = ConfigManager(args.config)
+        db_config = config_manager.get_sqlserver_database_config()
+        extraction_config = {}
+    elif args.databricks:
         config_manager = DatabricksConfigManager(args.config)
         db_config = config_manager.get_databricks_database_config()
         extraction_config = config_manager.get_databricks_extraction_config()
@@ -221,28 +258,48 @@ def extract_multiple_tables(args: argparse.Namespace) -> bool:
         extraction_config = {}
 
     # Override with command line arguments if provided
-    if args.host:
-        db_config["oracle_host"] = args.host
-    if args.port:
-        db_config["oracle_port"] = args.port
-    if args.service:
-        db_config["oracle_service"] = args.service
-    if args.user:
-        db_config["oracle_user"] = args.user
-    if args.password:
-        db_config["oracle_password"] = args.password
+    if args.sqlserver:
+        if args.sqlserver_host:
+            db_config["sqlserver_host"] = args.sqlserver_host
+        if args.sqlserver_port:
+            db_config["sqlserver_port"] = args.sqlserver_port
+        if args.sqlserver_database:
+            db_config["sqlserver_database"] = args.sqlserver_database
+        if args.sqlserver_user:
+            db_config["sqlserver_user"] = args.sqlserver_user
+        if args.sqlserver_password:
+            db_config["sqlserver_password"] = args.sqlserver_password
+    else:
+        if args.host:
+            db_config["oracle_host"] = args.host
+        if args.port:
+            db_config["oracle_port"] = args.port
+        if args.service:
+            db_config["oracle_service"] = args.service
+        if args.user:
+            db_config["oracle_user"] = args.user
+        if args.password:
+            db_config["oracle_password"] = args.password
     if args.databricks:
         db_config["output_base_path"] = args.databricks_output_path
     elif args.output_path:
         db_config["output_base_path"] = args.output_path
 
     # Validate required database configuration
-    required_db_fields = [
-        "oracle_host",
-        "oracle_service",
-        "oracle_user",
-        "oracle_password",
-    ]
+    if args.sqlserver:
+        required_db_fields = [
+            "sqlserver_host",
+            "sqlserver_database",
+            "sqlserver_user",
+            "sqlserver_password",
+        ]
+    else:
+        required_db_fields = [
+            "oracle_host",
+            "oracle_service",
+            "oracle_user",
+            "oracle_password",
+        ]
     for field in required_db_fields:
         if not db_config.get(field):
             print(
@@ -279,7 +336,17 @@ def extract_multiple_tables(args: argparse.Namespace) -> bool:
             return False
 
     # Create data extractor (Databricks or standard)
-    if args.databricks:
+    if args.sqlserver:
+        extractor = SqlServerDataExtractor(
+            sqlserver_host=db_config["sqlserver_host"],
+            sqlserver_port=db_config.get("sqlserver_port", "1433"),
+            sqlserver_database=db_config["sqlserver_database"],
+            sqlserver_user=db_config["sqlserver_user"],
+            sqlserver_password=db_config["sqlserver_password"],
+            output_base_path=db_config.get("output_base_path", "data"),
+            max_workers=cast(int, db_config.get("max_workers")),
+        )
+    elif args.databricks:
         extractor = DatabricksDataExtractor(
             oracle_host=db_config["oracle_host"],
             oracle_port=db_config.get("oracle_port", "1521"),

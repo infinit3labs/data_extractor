@@ -22,6 +22,7 @@ You can also write extracted tables directly to Unity Catalog volumes by setting
 - **Parquet Output**: Saves data in optimized Parquet format with organized directory structure
 - **Flexible Configuration**: Supports both configuration files and command-line arguments
 - **Oracle Database Support**: Optimized for Oracle database connectivity
+- **SQL Server Support**: Connect to Microsoft SQL Server via Spark JDBC
 - **Asynchronous Processing**: True asynchronous processing with dedicated Spark sessions per thread
 - **🚀 Databricks Integration**: Native support for Databricks cluster environments with optimized resource utilization
 - **Historical Query Support**: Optional Oracle Flashback queries for point-in-time snapshots
@@ -541,6 +542,7 @@ Additional guides can be found in the [docs](docs/) directory:
 
 - [Getting Started](docs/GETTING_STARTED.md)
 - [Demo Script](docs/DEMO.md)
+- [SQL Server Guide](docs/SQL_SERVER.md)
 - [Development Roadmap](ROADMAP.md) - Future development plans and priorities
 
 ## License
