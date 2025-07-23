@@ -543,6 +543,7 @@ Additional guides can be found in the [docs](docs/) directory:
 - [Getting Started](docs/GETTING_STARTED.md)
 - [Demo Script](docs/DEMO.md)
 - [SQL Server Guide](docs/SQL_SERVER.md)
+- [Development Roadmap](ROADMAP.md) - Future development plans and priorities
 
 ## License
 

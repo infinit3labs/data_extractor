@@ -14,6 +14,7 @@ data_extractor/
 ├── Makefile                          # Development workflow automation
 ├── .env.example                      # Environment variable template
 ├── PROJECT_STRUCTURE.md              # This file
+├── ROADMAP.md                        # Development roadmap and future plans
 │
 ├── config/                           # Configuration files
 │   ├── config.yml                    # Main configuration
@@ -30,11 +31,13 @@ data_extractor/
 │   └── logging_config.py             # Enterprise logging setup
 │
 ├── docs/                             # Documentation
+│   ├── CONTRIBUTING.md              # Contribution guidelines aligned with roadmap
 │   ├── DATABRICKS.md                 # Databricks usage guide
 │   ├── DATABRICKS_IMPLEMENTATION.md  # Implementation details
 │   ├── DEMO.md                       # Demo instructions
 │   ├── GETTING_STARTED.md            # Quick start guide
 │   ├── PERFORMANCE.md                # Performance optimization
+│   ├── ROADMAP_QUICK_REFERENCE.md   # Quick roadmap overview
 │   ├── UNITY_CATALOG.md              # Unity Catalog integration
 │   └── development/                  # Development documentation
 │       ├── CHECKLIST.md              # Development checklist
