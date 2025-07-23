@@ -6,7 +6,7 @@ import os
 import tempfile
 import unittest
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 
 from data_extractor.config import ConfigManager
 from data_extractor.core import DataExtractor
@@ -224,7 +224,7 @@ class TestDataExtractor(unittest.TestCase):
         # Mock ThreadPoolExecutor
         mock_future = Mock()
         mock_future.result.return_value = True
-        mock_executor_instance = Mock()
+        mock_executor_instance = MagicMock()
         mock_executor_instance.__enter__.return_value = mock_executor_instance
         mock_executor_instance.__exit__.return_value = None
         mock_executor_instance.submit.return_value = mock_future
@@ -253,7 +253,7 @@ class TestDataExtractor(unittest.TestCase):
     @patch("data_extractor.core.ThreadPoolExecutor")
     def test_extract_tables_parallel_validation(self, mock_executor):
         """Test validation of table configs in parallel extraction."""
-        mock_executor_instance = Mock()
+        mock_executor_instance = MagicMock()
         mock_executor_instance.__enter__.return_value = mock_executor_instance
         mock_executor_instance.__exit__.return_value = None
         mock_executor.return_value = mock_executor_instance

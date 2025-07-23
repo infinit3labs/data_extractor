@@ -1,0 +1,18 @@
+{
+  "tables": [
+    {
+      "source_name": "sql_server",
+      "table_name": "employees",
+      "schema_name": "dbo",
+      "incremental_column": "last_modified",
+      "extraction_date": "2024-01-01",
+      "is_full_extract": false
+    },
+    {
+      "source_name": "sql_server",
+      "table_name": "departments",
+      "schema_name": "dbo",
+      "is_full_extract": true
+    }
+  ]
+}

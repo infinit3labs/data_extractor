@@ -1,0 +1,13 @@
+# SQL Server example configuration
+
+database:
+  sqlserver_host: localhost
+  sqlserver_port: 1433
+  sqlserver_database: master
+  sqlserver_user: your_username
+  sqlserver_password: your_password
+  output_base_path: ./data
+
+extraction:
+  max_workers: 8
+  default_source: sql_server

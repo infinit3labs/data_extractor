@@ -20,6 +20,12 @@ class AppSettings(BaseSettings):
     oracle_service: str = Field(default="XE", alias="ORACLE_SERVICE")
     oracle_user: str = Field(default="", alias="ORACLE_USER")
     oracle_password: str = Field(default="", alias="ORACLE_PASSWORD")
+
+    sqlserver_host: str = Field(default="localhost", alias="SQLSERVER_HOST")
+    sqlserver_port: str = Field(default="1433", alias="SQLSERVER_PORT")
+    sqlserver_database: str = Field(default="master", alias="SQLSERVER_DATABASE")
+    sqlserver_user: str = Field(default="", alias="SQLSERVER_USER")
+    sqlserver_password: str = Field(default="", alias="SQLSERVER_PASSWORD")
     output_base_path: str = Field(default="data", alias="OUTPUT_BASE_PATH")
 
     max_workers: Optional[int] = Field(default=None, alias="MAX_WORKERS")
@@ -93,6 +99,19 @@ class ConfigManager:
         return {k: getattr(settings, k) for k in keys}
 
     # ------------------------------------------------------------------
+    def get_sqlserver_database_config(self) -> Dict[str, Any]:
+        settings = self.get_app_settings()
+        keys = [
+            "sqlserver_host",
+            "sqlserver_port",
+            "sqlserver_database",
+            "sqlserver_user",
+            "sqlserver_password",
+            "output_base_path",
+        ]
+        return {k: getattr(settings, k) for k in keys}
+
+    # ------------------------------------------------------------------
     def get_extraction_config(self) -> Dict[str, Any]:
         settings = self.get_app_settings()
         keys = [
@@ -132,6 +151,11 @@ class ConfigManager:
                 "oracle_service": "XE",
                 "oracle_user": "your_username",
                 "oracle_password": "your_password",
+                "sqlserver_host": "localhost",
+                "sqlserver_port": "1433",
+                "sqlserver_database": "master",
+                "sqlserver_user": "your_username",
+                "sqlserver_password": "your_password",
                 "output_base_path": "data",
             },
             "extraction": {
