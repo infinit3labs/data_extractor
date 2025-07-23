@@ -294,8 +294,8 @@ class DataExtractor:
 
         results = {}
 
-        executor = ThreadPoolExecutor(max_workers=self.max_workers)
-        try:
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            
             # Submit all extraction tasks
             future_to_table = {}
 
