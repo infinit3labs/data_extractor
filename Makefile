@@ -43,9 +43,9 @@ clean: ## Clean up temporary files
 	rm -rf data_extractor.egg-info/
 
 ci: ## Run all CI checks
-        make lint
-        make security
-        make test
+	make lint
+	make security
+	make test
 
 docker-build: ## Build Docker image
 	docker build -t data-extractor:latest .
@@ -73,7 +73,7 @@ validate-all: ## Run all validation checks
 	make clean
 	make install-dev
 	make lint
-        make type-check
-        make security
-        make test
-        @echo "✅ All validation checks passed!"
+	make type-check
+	make security
+	make test
+	@echo "✅ All validation checks passed!"
