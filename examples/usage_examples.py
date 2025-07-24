@@ -4,12 +4,10 @@ This script demonstrates how to use the data extractor programmatically
 and via the command line interface.
 """
 
+from typing import Dict
 
 from data_extractor.config import ConfigManager
 from data_extractor.core import DataExtractor
-
-
-from typing import Dict
 
 
 def example_config_file_usage() -> Dict[str, bool]:

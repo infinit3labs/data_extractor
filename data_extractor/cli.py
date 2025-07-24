@@ -23,27 +23,27 @@ def create_parser() -> argparse.ArgumentParser:
 Examples:
   # Extract using configuration files
   data-extractor --config config.yml --tables tables.json
-  
+
   # Extract using Databricks mode
   data-extractor --databricks --config config.yml --tables tables.json
-  
+
   # Extract single table with incremental extraction
   data-extractor --host localhost --port 1521 --service XE --user hr --password secret \\
                  --source-name oracle_db --table-name employees --schema hr \\
                  --incremental-column last_modified
-  
+
   # Extract single table in Databricks mode
   data-extractor --databricks --host localhost --port 1521 --service XE --user hr --password secret \\
                  --source-name oracle_db --table-name employees --schema hr \\
                  --incremental-column last_modified
-  
+
   # Extract single table with full extraction
   data-extractor --host localhost --port 1521 --service XE --user hr --password secret \\
                  --source-name oracle_db --table-name departments --schema hr --full-extract
-  
+
   # Generate sample configuration files
   data-extractor --generate-config config.yml --generate-tables tables.json
-  
+
   # Generate Databricks-specific configuration files
   data-extractor --generate-databricks-config databricks_config.yml --generate-databricks-tables databricks_tables.json
         """,
@@ -123,6 +123,11 @@ Examples:
         help="Maximum number of worker threads (default: number of CPU cores)",
     )
     parser.add_argument("--run-id", help="Unique run identifier (default: timestamp)")
+    parser.add_argument(
+        "--force-reprocess",
+        action="store_true",
+        help="Force reprocessing even if output files already exist (useful for recovery)",
+    )
 
     # Utility arguments
     parser.add_argument(
@@ -231,6 +236,7 @@ def extract_single_table(args: argparse.Namespace) -> bool:
         is_full_extract=args.full_extract,
         custom_query=args.custom_query,
         run_id=args.run_id,
+        force_reprocess=args.force_reprocess,
     )
 
     # Cleanup
@@ -368,7 +374,9 @@ def extract_multiple_tables(args: argparse.Namespace) -> bool:
         )
 
     # Extract tables in parallel
-    results = extractor.extract_tables_parallel(table_configs)
+    results = extractor.extract_tables_parallel(
+        table_configs, force_reprocess=args.force_reprocess
+    )
 
     # Cleanup
     extractor.cleanup_spark_sessions()

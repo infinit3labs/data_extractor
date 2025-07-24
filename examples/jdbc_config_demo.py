@@ -1,9 +1,11 @@
 """Demonstration of configurable JDBC options."""
 
+import sys
+from pathlib import Path
+
 from data_extractor.config import ConfigManager
 from data_extractor.core import DataExtractor
-from pathlib import Path
-import sys
+
 
 def main() -> None:
     config_path = Path(__file__).parent / "config" / "config.yml"
@@ -18,8 +20,12 @@ def main() -> None:
     extractor = DataExtractor(
         **db_config,
         max_workers=extraction_config.get("max_workers"),
-        jdbc_fetch_size=extraction_config.get("jdbc_fetch_size", AppSettings.DEFAULT_FETCH_SIZE),
-        jdbc_num_partitions=extraction_config.get("jdbc_num_partitions", AppSettings.DEFAULT_NUM_PARTITIONS),
+        jdbc_fetch_size=extraction_config.get(
+            "jdbc_fetch_size", AppSettings.DEFAULT_FETCH_SIZE
+        ),
+        jdbc_num_partitions=extraction_config.get(
+            "jdbc_num_partitions", AppSettings.DEFAULT_NUM_PARTITIONS
+        ),
     )
 
     print(
