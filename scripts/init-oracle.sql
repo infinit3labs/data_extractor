@@ -1,5 +1,15 @@
 -- Oracle test database initialization script
 
+-- Enable archive log and flashback
+CONNECT / AS SYSDBA;
+ALTER SYSTEM SET db_recovery_file_dest_size=2G;
+ALTER SYSTEM SET db_recovery_file_dest='/opt/oracle/oradata';
+SHUTDOWN IMMEDIATE;
+STARTUP MOUNT;
+ALTER DATABASE ARCHIVELOG;
+ALTER DATABASE FLASHBACK ON;
+ALTER DATABASE OPEN;
+
 -- Create test schema and tables
 CREATE USER testuser IDENTIFIED BY testpass;
 GRANT CREATE SESSION TO testuser;

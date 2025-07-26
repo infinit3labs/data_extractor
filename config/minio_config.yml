@@ -1,0 +1,22 @@
+# Data Extractor Configuration for MinIO Docker environment
+
+database:
+  oracle_host: oracle-db
+  oracle_port: 1521
+  oracle_service: XE
+  oracle_user: testuser
+  oracle_password: testpass
+  output_base_path: s3a://test-bucket/data
+
+extraction:
+  max_workers: 4
+  default_source: oracle_db
+  jdbc_fetch_size: 10000
+  jdbc_num_partitions: 4
+  spark_master: spark://spark-master:7077
+  s3_endpoint: http://minio:9000
+  s3_access_key: minioadmin
+  s3_secret_key: minioadmin
+
+databricks:
+  use_existing_spark: false

@@ -38,6 +38,14 @@ class AppSettings(BaseSettings):
     jdbc_fetch_size: int = Field(default=10000, alias="JDBC_FETCH_SIZE")
     jdbc_num_partitions: int = Field(default=4, alias="JDBC_NUM_PARTITIONS")
 
+    # S3/MinIO configuration
+    s3_endpoint: Optional[str] = Field(default=None, alias="S3_ENDPOINT")
+    s3_access_key: Optional[str] = Field(default=None, alias="S3_ACCESS_KEY")
+    s3_secret_key: Optional[str] = Field(default=None, alias="S3_SECRET_KEY")
+
+    # Spark cluster configuration
+    spark_master: Optional[str] = Field(default=None, alias="SPARK_MASTER")
+
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
 
 
@@ -122,6 +130,10 @@ class ConfigManager:
             "unity_catalog_volume",
             "jdbc_fetch_size",
             "jdbc_num_partitions",
+            "s3_endpoint",
+            "s3_access_key",
+            "s3_secret_key",
+            "spark_master",
         ]
         return {
             k: getattr(settings, k) for k in keys if getattr(settings, k) is not None
@@ -163,6 +175,10 @@ class ConfigManager:
                 "default_source": "oracle_db",
                 "jdbc_fetch_size": 10000,
                 "jdbc_num_partitions": 4,
+                "spark_master": "spark://spark-master:7077",
+                "s3_endpoint": "http://minio:9000",
+                "s3_access_key": "minioadmin",
+                "s3_secret_key": "minioadmin",
             },
         }
         with open(config_path, "w", encoding="utf-8") as f:

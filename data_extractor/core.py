@@ -31,6 +31,11 @@ class DataExtractor:
         max_workers: Optional[int] = None,
         jdbc_fetch_size: int = 10000,
         jdbc_num_partitions: int = 4,
+        spark_master: Optional[str] = None,
+        s3_endpoint: Optional[str] = None,
+        s3_access_key: Optional[str] = None,
+        s3_secret_key: Optional[str] = None,
+        detect_first_run: bool = False,
     ):
         """
         Initialize the DataExtractor.
@@ -45,6 +50,11 @@ class DataExtractor:
             max_workers: Maximum number of worker threads (default: CPU count)
             jdbc_fetch_size: JDBC fetch size for Spark reads
             jdbc_num_partitions: Number of partitions for Spark JDBC reads
+            spark_master: Spark master URL for cluster mode
+            s3_endpoint: S3 endpoint for MinIO
+            s3_access_key: S3 access key
+            s3_secret_key: S3 secret key
+            detect_first_run: Enable automatic full extract on first run
         """
         self.oracle_host = oracle_host
         self.oracle_port = oracle_port
@@ -55,6 +65,11 @@ class DataExtractor:
         self.max_workers = max_workers or os.cpu_count()
         self.jdbc_fetch_size = jdbc_fetch_size
         self.jdbc_num_partitions = jdbc_num_partitions
+        self.spark_master = spark_master or os.getenv("SPARK_MASTER")
+        self.s3_endpoint = s3_endpoint
+        self.s3_access_key = s3_access_key
+        self.s3_secret_key = s3_secret_key
+        self.detect_first_run = detect_first_run
 
         # JDBC connection properties
         self.jdbc_url = (
@@ -90,7 +105,7 @@ class DataExtractor:
         Each thread gets its own Spark session for true parallel processing.
         """
         if not hasattr(self._local, "spark"):
-            self._local.spark = (
+            builder = (
                 SparkSession.builder.appName(
                     f"DataExtractor-{threading.current_thread().name}"
                 )
@@ -102,8 +117,25 @@ class DataExtractor:
                 .config(
                     "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
                 )
-                .getOrCreate()
             )
+
+            if self.spark_master:
+                builder = builder.master(self.spark_master)
+
+            if self.s3_endpoint:
+                builder = (
+                    builder.config("spark.hadoop.fs.s3a.endpoint", self.s3_endpoint)
+                    .config("spark.hadoop.fs.s3a.access.key", self.s3_access_key or "")
+                    .config("spark.hadoop.fs.s3a.secret.key", self.s3_secret_key or "")
+                    .config("spark.hadoop.fs.s3a.path.style.access", "true")
+                    .config(
+                        "spark.hadoop.fs.s3a.impl",
+                        "org.apache.hadoop.fs.s3a.S3AFileSystem",
+                    )
+                    .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+                )
+
+            self._local.spark = builder.getOrCreate()
 
         return self._local.spark
 
@@ -147,9 +179,10 @@ class DataExtractor:
         """
         thread_name = threading.current_thread().name
 
-        # Auto-detect first run
+        # Auto-detect first run if enabled
         if (
-            not is_full_extract
+            self.detect_first_run
+            and not is_full_extract
             and incremental_column
             and self._is_first_run(source_name, table_name)
         ):
@@ -247,8 +280,9 @@ class DataExtractor:
                 f"{run_id}.parquet",
             )
 
-            # Create directory if it doesn't exist
-            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            # Create directory for local paths
+            if not output_path.startswith("s3a://"):
+                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
             # Save as Parquet
             self.logger.info("[%s] Saving to: %s", thread_name, output_path)
@@ -295,7 +329,7 @@ class DataExtractor:
         results = {}
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            
+
             # Submit all extraction tasks
             future_to_table = {}
 
@@ -347,8 +381,6 @@ class DataExtractor:
                         str(e),
                     )
                     results[table_name] = False
-        finally:
-            executor.shutdown(wait=True)
 
         # Log summary
         successful = sum(1 for success in results.values() if success)

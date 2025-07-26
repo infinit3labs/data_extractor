@@ -63,6 +63,22 @@ poetry shell
 - Python 3.8+
 - Apache Spark 3.4+
 - Oracle JDBC Driver (automatically downloaded via Spark packages)
+
+## Docker Mock Environment
+
+The project includes a `docker-compose.yml` that spins up a complete test
+environment with Oracle XE, a Spark cluster and MinIO for S3-compatible storage.
+Use the provided `config/minio_config.yml` when running inside this setup.
+
+```bash
+docker-compose up --build
+docker-compose run --rm data-extractor \
+  python examples/minio_spark_demo.py \
+  --config config/minio_config.yml \
+  --tables config/tables.json
+```
+
+See [docs/MINIO_SPARK_DOCKER.md](docs/MINIO_SPARK_DOCKER.md) for details.
 - Oracle Database connectivity
 - Sufficient disk space for Parquet output files
 

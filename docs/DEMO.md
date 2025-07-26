@@ -34,6 +34,18 @@ To try Oracle Flashback queries use:
 poetry run python examples/flashback_demo.py --config config/config.yml --tables config/tables.json --timestamp 2024-01-01T12:00:00
 ```
 
+### MinIO/Spark Demo
+
+Run the Docker-based environment and execute the demo script that writes to
+MinIO:
+
+```bash
+docker-compose up -d
+poetry run python examples/minio_spark_demo.py \
+  --config config/minio_config.yml \
+  --tables config/tables.json
+```
+
 ### JDBC Options Demo
 
 You can check the configured JDBC fetch size and partition count with:
