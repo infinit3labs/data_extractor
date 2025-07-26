@@ -5,7 +5,6 @@ Tests for the Databricks data extraction functionality.
 import os
 import tempfile
 import unittest
-from datetime import datetime
 from unittest.mock import Mock, patch
 
 from data_extractor.databricks import DatabricksConfigManager, DatabricksDataExtractor
@@ -121,35 +120,36 @@ class TestDatabricksDataExtractor(unittest.TestCase):
         mock_df.count.return_value = 100
         mock_df.coalesce.return_value = mock_df
         mock_df.write.mode.return_value.parquet = Mock()
-        
+
         # Mock defaultParallelism for numPartitions calculation
         mock_spark.sparkContext.defaultParallelism = 16
-        
+
         mock_read = Mock()
         mock_read.format.return_value = mock_read
         mock_read.option.return_value = mock_read
         mock_read.load.return_value = mock_df
         mock_spark.read = mock_read
-        
+
         mock_spark_session.getActiveSession.return_value = mock_spark
 
         extractor = DatabricksDataExtractor(**self.test_config, use_existing_spark=True)
-        
-        with patch('pathlib.Path.mkdir'):
+
+        with patch("pathlib.Path.mkdir"):
             result = extractor.extract_table(
                 source_name="test_source",
                 table_name="test_table",
                 schema_name="test_schema",
-                is_full_extract=True
+                is_full_extract=True,
             )
-        
+
         self.assertTrue(result)
         mock_df.count.assert_called_once()
-        
+
         # Verify numPartitions was optimized for Databricks
         call_args = mock_read.option.call_args_list
-        num_partitions_call = next((call for call in call_args 
-                                  if call[0][0] == "numPartitions"), None)
+        num_partitions_call = next(
+            (call for call in call_args if call[0][0] == "numPartitions"), None
+        )
         self.assertIsNotNone(num_partitions_call)
         self.assertEqual(num_partitions_call[0][1], "8")  # min(8, 16)
 
@@ -162,38 +162,42 @@ class TestDatabricksDataExtractor(unittest.TestCase):
         mock_df.count.return_value = 50
         mock_df.coalesce.return_value = mock_df
         mock_df.write.mode.return_value.parquet = Mock()
-        
+
         mock_spark.sparkContext.defaultParallelism = 4
-        
+
         mock_read = Mock()
         mock_read.format.return_value = mock_read
         mock_read.option.return_value = mock_read
         mock_read.load.return_value = mock_df
         mock_spark.read = mock_read
-        
+
         mock_spark_session.getActiveSession.return_value = mock_spark
 
         # Test with Unity Catalog volume
         config_with_uc = self.test_config.copy()
         config_with_uc["unity_catalog_volume"] = "main.default.test_volume"
-        
+
         with patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "12.2.x-scala2.12"}):
-            extractor = DatabricksDataExtractor(**config_with_uc, use_existing_spark=True)
-            
-            with patch('pathlib.Path.mkdir'):
+            extractor = DatabricksDataExtractor(
+                **config_with_uc, use_existing_spark=True
+            )
+
+            with patch("pathlib.Path.mkdir"):
                 result = extractor.extract_table(
                     source_name="test_source",
                     table_name="test_table",
-                    is_full_extract=True
+                    is_full_extract=True,
                 )
-        
+
         self.assertTrue(result)
 
     def test_databricks_max_workers_optimization(self):
         """Test that Databricks uses optimized worker count."""
-        with patch('os.cpu_count', return_value=16):
+        with patch("os.cpu_count", return_value=16):
             # Remove max_workers from config to test default behavior
-            config_without_max_workers = {k: v for k, v in self.test_config.items() if k != 'max_workers'}
+            config_without_max_workers = {
+                k: v for k, v in self.test_config.items() if k != "max_workers"
+            }
             extractor = DatabricksDataExtractor(**config_without_max_workers)
             # Should use half of CPU count for Databricks
             self.assertEqual(extractor.max_workers, 8)

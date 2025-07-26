@@ -18,7 +18,7 @@ def _get_widget(name: str, default: Optional[str] = None) -> Optional[str]:
         except (AttributeError, ValueError):
             # Widget doesn't exist or other widget error
             pass
-    
+
     # Fallback to environment variables if widget access fails
     return os.getenv(name.upper(), default)
 

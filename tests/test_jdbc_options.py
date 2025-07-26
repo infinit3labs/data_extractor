@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, call, patch
+
 from data_extractor.config import ConfigManager
 from data_extractor.core import DataExtractor
 

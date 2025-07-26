@@ -15,6 +15,7 @@ import psutil
 
 try:
     import cx_Oracle
+
     ORACLE_AVAILABLE = True
 except ImportError:
     cx_Oracle = None
@@ -96,7 +97,7 @@ class HealthChecker:
             # Import cx_Oracle here to avoid unbound variable issues
             if cx_Oracle is None:
                 raise ImportError("cx_Oracle not available")
-            
+
             # Create connection string
             dsn = cx_Oracle.makedsn(host, port, service_name=service)
 
@@ -147,24 +148,32 @@ class HealthChecker:
                 timestamp=datetime.now(),
                 details={"error": "Missing cx_Oracle dependency"},
             )
-        except (OSError, ConnectionError, TimeoutError, ValueError, TypeError) as db_error:
+        except (
+            OSError,
+            ConnectionError,
+            TimeoutError,
+            ValueError,
+            TypeError,
+        ) as db_error:
             # Handle database connection errors and other common issues
             error_message = "Database connection failed"
             details = {"error": str(db_error)}
-            
+
             # Try to extract more specific error information if it's a DatabaseError
-            if hasattr(db_error, 'args') and db_error.args:
+            if hasattr(db_error, "args") and db_error.args:
                 try:
                     error_obj = db_error.args[0]
-                    if hasattr(error_obj, 'message'):
-                        error_message = f"Database connection failed: {error_obj.message}"
-                        error_code = getattr(error_obj, 'code', None)
+                    if hasattr(error_obj, "message"):
+                        error_message = (
+                            f"Database connection failed: {error_obj.message}"
+                        )
+                        error_code = getattr(error_obj, "code", None)
                         if error_code is not None:
                             details["error_code"] = str(error_code)
                         details["error_message"] = str(error_obj.message)
                 except (IndexError, AttributeError):
                     pass
-            
+
             return HealthCheckResult(
                 name="database_connection",
                 status=HealthStatus.UNHEALTHY,
