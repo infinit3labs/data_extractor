@@ -1,0 +1,6 @@
+pipeline_name: oracle
+base_path: ./pipeline_demo_data
+business_date: 2024-07-25
+tables:
+  - customers
+  - orders
