@@ -347,8 +347,6 @@ class DataExtractor:
                         str(e),
                     )
                     results[table_name] = False
-        finally:
-            executor.shutdown(wait=True)
 
         # Log summary
         successful = sum(1 for success in results.values() if success)
