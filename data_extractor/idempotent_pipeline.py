@@ -309,7 +309,7 @@ class DataPipelineOrchestrator:
 
 
 def demo_pipeline() -> None:
-    base = Path("/tmp/pipeline_demo")
+    base = Path.cwd() / 'pipeline_demo'
     orchestrator = DataPipelineOrchestrator(base)
     tables = ["customers", "orders"]
     date = "2024-07-25"
