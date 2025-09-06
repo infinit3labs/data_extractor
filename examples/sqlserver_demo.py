@@ -9,7 +9,9 @@ from data_extractor.sqlserver import SqlServerDataExtractor
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run SQL Server demo")
-    parser.add_argument("--config", required=True, help="Path to YAML configuration file")
+    parser.add_argument(
+        "--config", required=True, help="Path to YAML configuration file"
+    )
     parser.add_argument("--tables", required=True, help="Path to tables JSON file")
     return parser.parse_args()
 

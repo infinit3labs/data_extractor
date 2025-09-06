@@ -36,9 +36,7 @@ class SqlServerDataExtractor:
         self.jdbc_fetch_size = jdbc_fetch_size
         self.jdbc_num_partitions = jdbc_num_partitions
 
-        self.jdbc_url = (
-            f"jdbc:sqlserver://{sqlserver_host}:{sqlserver_port};database={sqlserver_database}"
-        )
+        self.jdbc_url = f"jdbc:sqlserver://{sqlserver_host}:{sqlserver_port};database={sqlserver_database}"
         self.connection_properties = {
             "user": sqlserver_user,
             "password": sqlserver_password,
@@ -71,14 +69,18 @@ class SqlServerDataExtractor:
                 )
                 .config("spark.sql.adaptive.enabled", "true")
                 .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-                .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+                .config(
+                    "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
+                )
                 .getOrCreate()
             )
         return self._local.spark
 
     def _is_first_run(self, source_name: str, table_name: str) -> bool:
         table_path = os.path.join(self.output_base_path, source_name, table_name)
-        return not os.path.exists(table_path) or not any(Path(table_path).rglob("*.parquet"))
+        return not os.path.exists(table_path) or not any(
+            Path(table_path).rglob("*.parquet")
+        )
 
     def extract_table(
         self,
@@ -122,11 +124,15 @@ class SqlServerDataExtractor:
             if custom_query:
                 query = custom_query
             else:
-                full_table_name = f"{schema_name}.{table_name}" if schema_name else table_name
+                full_table_name = (
+                    f"{schema_name}.{table_name}" if schema_name else table_name
+                )
                 if is_full_extract or not incremental_column:
                     query = f"SELECT * FROM {full_table_name}"
                 else:
-                    start_date = extraction_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    start_date = extraction_date.replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
                     end_date = start_date + timedelta(days=1)
                     query = f"""
                     SELECT * FROM {full_table_name}
@@ -155,7 +161,9 @@ class SqlServerDataExtractor:
                 table_name,
             )
             if record_count == 0:
-                self.logger.warning("[%s] No data found for table %s", thread_name, table_name)
+                self.logger.warning(
+                    "[%s] No data found for table %s", thread_name, table_name
+                )
                 return True
 
             year_month = extraction_date.strftime("%Y%m")
@@ -177,10 +185,18 @@ class SqlServerDataExtractor:
                 "[%s] Successfully extracted table: %s", thread_name, table_name
             )
             return True
-        except (ConnectionError, ValueError, RuntimeError, 
-                py4j.protocol.Py4JJavaError, pyspark.sql.utils.AnalysisException) as exc:
+        except (
+            ConnectionError,
+            ValueError,
+            RuntimeError,
+            py4j.protocol.Py4JJavaError,
+            pyspark.sql.utils.AnalysisException,
+        ) as exc:
             self.logger.error(
-                "[%s] Known error extracting table %s: %s", thread_name, table_name, str(exc)
+                "[%s] Known error extracting table %s: %s",
+                thread_name,
+                table_name,
+                str(exc),
             )
             return False
         except Exception as exc:

@@ -5,23 +5,22 @@ Provides Databricks-optimized functionality for running in Databricks cluster co
 
 import logging
 import os
-import threading
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 import yaml
 from pyspark.sql import SparkSession
 
 from .config import ConfigManager
+from .core import DataExtractor
 
 
-class DatabricksDataExtractor:
+class DatabricksDataExtractor(DataExtractor):
     """
     Databricks-optimized data extraction class.
 
-    This class is designed to run efficiently in Databricks cluster context,
-    utilizing the existing Spark session and Databricks-specific features.
+    This class inherits from DataExtractor to get idempotency features
+    and provides Databricks-specific optimizations.
     """
 
     def __init__(
@@ -35,6 +34,8 @@ class DatabricksDataExtractor:
         max_workers: Optional[int] = None,
         use_existing_spark: bool = True,
         unity_catalog_volume: Optional[str] = None,
+        jdbc_fetch_size: int = 10000,
+        jdbc_num_partitions: int = 4,
     ):
         """
         Initialize the DatabricksDataExtractor.
@@ -51,37 +52,34 @@ class DatabricksDataExtractor:
             unity_catalog_volume: Optional Unity Catalog volume path in the form
                 "catalog/schema/volume". When provided, output paths will be
                 written to this volume instead of ``output_base_path``.
+            jdbc_fetch_size: JDBC fetch size for Spark reads
+            jdbc_num_partitions: Number of partitions for Spark JDBC reads
         """
-        self.oracle_host = oracle_host
-        self.oracle_port = oracle_port
-        self.oracle_service = oracle_service
-        self.oracle_user = oracle_user
-        self.oracle_password = oracle_password
-        self.output_base_path = output_base_path
+        # In Databricks, use fewer workers to avoid overwhelming shared clusters
+        cpu_count = os.cpu_count() or 2
+        databricks_max_workers = max_workers or max(1, cpu_count // 2)
+
+        # Call parent constructor to get idempotency features
+        super().__init__(
+            oracle_host=oracle_host,
+            oracle_port=oracle_port,
+            oracle_service=oracle_service,
+            oracle_user=oracle_user,
+            oracle_password=oracle_password,
+            output_base_path=output_base_path,
+            max_workers=databricks_max_workers,
+            jdbc_fetch_size=jdbc_fetch_size,
+            jdbc_num_partitions=jdbc_num_partitions,
+        )
+
+        # Databricks-specific attributes
         self.use_existing_spark = use_existing_spark
         self.unity_catalog_volume = unity_catalog_volume
 
-        # In Databricks, use fewer workers to avoid overwhelming shared clusters
-        cpu_count = os.cpu_count() or 2
-        self.max_workers = max_workers or max(1, cpu_count // 2)
-
-        # JDBC connection properties
-        self.jdbc_url = (
-            f"jdbc:oracle:thin:@{oracle_host}:{oracle_port}:{oracle_service}"
-        )
-        self.connection_properties = {
-            "user": oracle_user,
-            "password": oracle_password,
-            "driver": "oracle.jdbc.driver.OracleDriver",
-        }
-
-        # Thread-local storage for Spark sessions (only used if use_existing_spark=False)
-        self._local = threading.local()
-
-        # Check if running in Databricks environment first
+        # Databricks environment detection
         self.is_databricks = self._is_databricks_environment()
 
-        # Setup logging for Databricks
+        # Setup Databricks-optimized logging
         self._setup_databricks_logging()
 
         if self.is_databricks:
@@ -132,24 +130,8 @@ class DatabricksDataExtractor:
                 spark = SparkSession.builder.getOrCreate()
             return spark
         else:
-            # Create thread-local sessions (not recommended for Databricks)
-            if not hasattr(self._local, "spark"):
-                self._local.spark = (
-                    SparkSession.builder.appName(
-                        f"DataExtractor-Databricks-{threading.current_thread().name}"
-                    )
-                    .config(
-                        "spark.jars.packages",
-                        "com.oracle.database.jdbc:ojdbc8:21.7.0.0",
-                    )
-                    .config("spark.sql.adaptive.enabled", "true")
-                    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-                    .config(
-                        "spark.serializer", "org.apache.spark.serializer.KryoSerializer"
-                    )
-                    .getOrCreate()
-                )
-            return self._local.spark
+            # Use parent implementation for thread-local sessions
+            return super()._get_spark_session()
 
     def _normalize_output_path(self, path: str) -> str:
         """
@@ -176,391 +158,198 @@ class DatabricksDataExtractor:
 
         return path
 
-    def extract_table(
-        self,
-        source_name: str,
-        table_name: str,
-        schema_name: Optional[str] = None,
-        incremental_column: Optional[str] = None,
-        extraction_date: Optional[datetime] = None,
-        is_full_extract: bool = False,
-        custom_query: Optional[str] = None,
-        run_id: Optional[str] = None,
-    ) -> bool:
-        """
-        Extract a single table from Oracle database and save as Parquet.
-        Optimized for Databricks environment.
+    def _get_output_path(
+        self, source_name: str, table_name: str, extraction_date: datetime, run_id: str
+    ) -> str:
+        """Override to handle Unity Catalog volumes and Databricks paths."""
+        year_month = extraction_date.strftime("%Y%m")
+        day = extraction_date.strftime("%d")
 
-        Args:
-            source_name: Name of the data source
-            table_name: Name of the table to extract
-            schema_name: Schema name (optional)
-            incremental_column: Column for incremental extraction
-            extraction_date: Date for incremental extraction (default: yesterday)
-            is_full_extract: Whether to perform full table extraction
-            custom_query: Custom SQL query to use instead of table name
-            run_id: Unique run identifier
+        if self.unity_catalog_volume:
+            # Use Unity Catalog volume path
+            base_path = f"/Volumes/{self.unity_catalog_volume}"
+        else:
+            # Use regular output path, normalized for Databricks
+            base_path = self._normalize_output_path(self.output_base_path)
 
-        Returns:
-            bool: True if extraction was successful, False otherwise
-        """
-        thread_name = threading.current_thread().name
-
-        try:
-            # Generate run_id if not provided
-            if not run_id:
-                run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-            # Set extraction date to yesterday if not provided
-            if not extraction_date:
-                extraction_date = datetime.now() - timedelta(days=1)
-
-            self.logger.info(
-                "[%s] Starting Databricks extraction for table: %s", thread_name, table_name
-            )
-
-            # Get Spark session (use existing Databricks session)
-            spark = self._get_spark_session()
-
-            # Build the query
-            if custom_query:
-                query = custom_query
-            else:
-                full_table_name = (
-                    f"{schema_name}.{table_name}" if schema_name else table_name
-                )
-
-                if is_full_extract or not incremental_column:
-                    query = f"SELECT * FROM {full_table_name}"
-                else:
-                    # Incremental extraction for 24-hour window
-                    start_date = extraction_date.replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    )
-                    end_date = start_date + timedelta(days=1)
-
-                    query = f"""
-                    SELECT * FROM {full_table_name}
-                    WHERE {incremental_column} >= TO_DATE('{start_date.strftime('%Y-%m-%d %H:%M:%S')}', 'YYYY-MM-DD HH24:MI:SS')
-                    AND {incremental_column} < TO_DATE('{end_date.strftime('%Y-%m-%d %H:%M:%S')}', 'YYYY-MM-DD HH24:MI:SS')
-                    """
-
-            self.logger.info("[%s] Executing query: %s", thread_name, query)
-
-            # Extract data using Spark JDBC with Databricks optimizations
-            df = (
-                spark.read.format("jdbc")
-                .option("url", self.jdbc_url)
-                .option("query", query)
-                .option("user", self.oracle_user)
-                .option("password", self.oracle_password)
-                .option("driver", "oracle.jdbc.driver.OracleDriver")
-                .option("fetchsize", "10000")
-                .option(
-                    "numPartitions", str(min(8, spark.sparkContext.defaultParallelism))
-                )
-                .load()
-            )
-
-            # Check if data was extracted
-            record_count = df.count()
-            self.logger.info(
-                "[%s] Extracted %d records from %s", thread_name, record_count, table_name
-            )
-
-            if record_count == 0:
-                self.logger.warning(
-                    "[%s] No data found for table %s", thread_name, table_name
-                )
-                return True  # Not an error, just no data
-
-            # Prepare output path for Databricks: data/source_name/entity_name/yyyymm/dd/run_id.parquet
-            year_month = extraction_date.strftime("%Y%m")
-            day = extraction_date.strftime("%d")
-
-            if self.unity_catalog_volume:
-                uc_base = f"/Volumes/{self.unity_catalog_volume.replace('.', '/')}"
-                base_output_path = self._normalize_output_path(uc_base)
-            else:
-                base_output_path = self._normalize_output_path(self.output_base_path)
-            output_path = os.path.join(
-                base_output_path,
-                source_name,
-                table_name,
-                year_month,
-                day,
-                f"{run_id}.parquet",
-            )
-
-            # Create directory if it doesn't exist (for DBFS paths)
-            if output_path.startswith("/dbfs/"):
-                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
-            # Save as Parquet with Databricks optimizations
-            self.logger.info("[%s] Saving to: %s", thread_name, output_path)
-
-            # Use coalesce based on data size for better performance in Databricks
-            num_partitions = min(max(1, record_count // 100000), 10)
-            df.coalesce(num_partitions).write.mode("overwrite").parquet(output_path)
-
-            self.logger.info(
-                "[%s] Successfully extracted table: %s", thread_name, table_name
-            )
-            return True
-
-        except (ConnectionError, TimeoutError, RuntimeError) as e:
-            self.logger.error(
-                "[%s] Error extracting table %s: %s", thread_name, table_name, str(e)
-            )
-            return False
-        except Exception as e:  # pylint: disable=broad-except
-            import traceback
-            self.logger.error(
-                "[%s] Unexpected error extracting table %s: %s\n%s",
-                thread_name,
-                table_name,
-                str(e),
-                traceback.format_exc(),
-            )
-            return False
-
-    def extract_tables_parallel(self, table_configs: List[Dict]) -> Dict[str, bool]:
-        """
-        Extract multiple tables in parallel using threading, optimized for Databricks.
-
-        Args:
-            table_configs: List of table configuration dictionaries
-
-        Returns:
-            Dict mapping table names to extraction success status
-        """
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        self.logger.info(
-            "Starting Databricks parallel extraction of %d tables using %d workers",
-            len(table_configs), self.max_workers
+        return os.path.join(
+            base_path,
+            source_name,
+            table_name,
+            year_month,
+            day,
+            f"{run_id}.parquet",
         )
-
-        results = {}
-
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            # Submit all extraction tasks
-            future_to_table = {}
-
-            for config in table_configs:
-                source_name = config.get("source_name")
-                table_name = config.get("table_name")
-                
-                if not source_name or not table_name:
-                    self.logger.error("Missing required source_name or table_name in config: %s", config)
-                    continue
-                    
-                future = executor.submit(
-                    self.extract_table,
-                    source_name=source_name,
-                    table_name=table_name,
-                    schema_name=config.get("schema_name"),
-                    incremental_column=config.get("incremental_column"),
-                    extraction_date=config.get("extraction_date"),
-                    is_full_extract=config.get("is_full_extract", False),
-                    custom_query=config.get("custom_query"),
-                    run_id=config.get("run_id"),
-                )
-                future_to_table[future] = table_name
-
-            # Collect results as they complete
-            for future in as_completed(future_to_table):
-                table_name = future_to_table[future]
-                try:
-                    success = future.result()
-                    results[table_name] = success
-
-                    if success:
-                        self.logger.info(
-                            "Successfully completed Databricks extraction for table: %s", table_name
-                        )
-                    else:
-                        self.logger.error(
-                            "Failed Databricks extraction for table: %s", table_name
-                        )
-
-                except (ConnectionError, TimeoutError, RuntimeError) as e:
-                    self.logger.error(
-                        "Exception during Databricks extraction of table %s: %s", table_name, str(e)
-                    )
-                    results[table_name] = False
-
-        # Log summary
-        successful = sum(1 for success in results.values() if success)
-        total = len(results)
-        self.logger.info(
-            "Databricks parallel extraction completed: %d/%d tables successful",
-            successful, total
-        )
-
-        return results
 
     def cleanup_spark_sessions(self):
-        """Clean up Spark sessions if created locally (not recommended for Databricks)."""
-        if not self.use_existing_spark and hasattr(self._local, "spark"):
-            self._local.spark.stop()
-            del self._local.spark
+        """
+        Clean up Spark sessions.
+        In Databricks mode with existing sessions, this is typically not needed.
+        """
+        if not self.use_existing_spark:
+            super().cleanup_spark_sessions()
+        else:
+            self.logger.info("Using existing Spark session - no cleanup needed")
 
     def get_databricks_context(self) -> Dict[str, Any]:
         """
-        Get Databricks context information for debugging and logging.
+        Get information about the current Databricks environment.
 
         Returns:
-            Dict containing Databricks environment information
+            Dictionary with Databricks context information
         """
         context = {
             "is_databricks": self.is_databricks,
-            "runtime_version": os.environ.get("DATABRICKS_RUNTIME_VERSION"),
-            "spark_home": os.environ.get("SPARK_HOME"),
-            "hostname": os.environ.get("HOSTNAME"),
             "use_existing_spark": self.use_existing_spark,
-            "max_workers": self.max_workers,
-            "output_base_path": self.output_base_path,
             "unity_catalog_volume": self.unity_catalog_volume,
+            "output_base_path": self.output_base_path,
+            "max_workers": self.max_workers,
+            "environment_variables": {
+                "databricks_runtime_version": os.environ.get(
+                    "DATABRICKS_RUNTIME_VERSION"
+                ),
+                "spark_home": os.environ.get("SPARK_HOME"),
+                "hostname": os.environ.get("HOSTNAME"),
+            },
         }
 
-        # Try to get Spark context information
+        # Add Spark session information if available
         try:
             spark = self._get_spark_session()
-            context.update(
-                {
-                    "spark_version": spark.version,
-                    "spark_app_name": spark.sparkContext.appName,
-                    "spark_master": spark.sparkContext.master,
-                    "default_parallelism": spark.sparkContext.defaultParallelism,
-                }
-            )
-        except (ConnectionError, RuntimeError) as e:
-            context["spark_error"] = str(e)
+            context["spark_version"] = spark.version
+            context["spark_app_name"] = spark.sparkContext.appName
+            context["spark_master"] = spark.sparkContext.master
+        except Exception:
+            context["spark_info"] = "Not available"
 
         return context
 
-
-class DatabricksConfigManager(ConfigManager):
-    """
-    Databricks-specific configuration manager.
-    Extends the base ConfigManager with Databricks-specific functionality.
-    """
-
-    def get_databricks_database_config(self) -> Dict[str, str]:
+    # Configuration helper methods
+    @staticmethod
+    def get_databricks_database_config() -> Dict[str, str]:
         """
-        Get database configuration with Databricks-specific defaults.
+        Get database configuration optimized for Databricks.
 
         Returns:
-            Dict containing database connection parameters optimized for Databricks
+            Dictionary with database configuration
         """
-        config = self.get_database_config()
-        if (
-            not config.get("output_base_path")
-            or config.get("output_base_path") == "data"
-        ):
-            config["output_base_path"] = "/dbfs/data"
-        return config
+        return {
+            "oracle_host": "your_oracle_host",
+            "oracle_port": "1521",
+            "oracle_service": "XE",
+            "oracle_user": "your_username",
+            "oracle_password": "your_password",
+        }
 
     def get_databricks_extraction_config(self) -> Dict[str, Any]:
         """
-        Get extraction configuration with Databricks-specific defaults.
+        Get extraction configuration optimized for Databricks.
 
         Returns:
-            Dict containing extraction parameters optimized for Databricks
+            Dictionary with extraction configuration
         """
-        config = self.get_extraction_config()
-        if not config.get("max_workers"):
-            cpu_count = os.cpu_count() or 2
-            config["max_workers"] = max(1, cpu_count // 2)
-        config["use_existing_spark"] = True
-        if (
-            "databricks" in self.config_data
-            and isinstance(self.config_data["databricks"], dict)
-            and self.config_data["databricks"].get("unity_catalog_volume")
-        ):
-            config["unity_catalog_volume"] = self.config_data["databricks"].get(
-                "unity_catalog_volume"
-            )
-        return config
+        return {
+            "output_base_path": "/dbfs/data",
+            "max_workers": self.max_workers,
+            "use_existing_spark": True,
+            "unity_catalog_volume": None,  # Optional: "catalog/schema/volume"
+            "jdbc_fetch_size": self.jdbc_fetch_size,
+            "jdbc_num_partitions": self.jdbc_num_partitions,
+        }
 
-    def create_databricks_sample_config(self, config_path: str):
+    @staticmethod
+    def create_databricks_sample_config(config_path: str):
         """
         Create a sample configuration file optimized for Databricks.
 
         Args:
-            config_path: Path where to create the sample config file
+            config_path: Path where to save the sample config
         """
-        sample_config = {
+        config = {
             "database": {
                 "oracle_host": "your_oracle_host",
-                "oracle_port": "1521",
-                "oracle_service": "your_service_name",
+                "oracle_port": 1521,
+                "oracle_service": "XE",
                 "oracle_user": "your_username",
                 "oracle_password": "your_password",
-                "output_base_path": "/dbfs/data",
             },
             "extraction": {
+                "output_base_path": "/dbfs/data",
                 "max_workers": 4,
                 "default_source": "oracle_db",
-                "use_existing_spark": True,
             },
             "databricks": {
-                "cluster_mode": "shared",
-                "log_level": "INFO",
-                "output_format": "parquet",
-                "unity_catalog_volume": "main/default/volume",
+                "use_existing_spark": True,
+                "unity_catalog_volume": None,  # Optional: "catalog/schema/volume"
+                "databricks_output_path": "/dbfs/mnt/datalake/extracted_data",
             },
         }
 
-        with open(config_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(sample_config, f)
+        with open(config_path, "w") as f:
+            yaml.dump(config, f, default_flow_style=False, indent=2)
 
-    def create_databricks_sample_tables_json(self, json_path: str):
+    @staticmethod
+    def create_databricks_sample_tables_json(json_path: str):
         """
-        Create a sample tables configuration JSON file for Databricks.
+        Create a sample tables JSON file with Databricks-optimized settings.
 
         Args:
-            json_path: Path where to create the sample JSON file
+            json_path: Path where to save the sample JSON
         """
-        import json
-
-        sample_tables = {
+        tables_config = {
             "tables": [
                 {
-                    "source_name": "oracle_db",
-                    "table_name": "employees",
-                    "schema_name": "hr",
+                    "source_name": "oracle_prod",
+                    "table_name": "customers",
+                    "schema_name": "sales",
                     "incremental_column": "last_modified",
-                    "extraction_date": "2023-12-01",
                     "is_full_extract": False,
-                    "comment": "Incremental extraction of employee data",
                 },
                 {
-                    "source_name": "oracle_db",
-                    "table_name": "departments",
-                    "schema_name": "hr",
-                    "is_full_extract": True,
-                    "comment": "Full extraction of department reference data",
-                },
-                {
-                    "source_name": "oracle_db",
+                    "source_name": "oracle_prod",
                     "table_name": "orders",
                     "schema_name": "sales",
                     "incremental_column": "order_date",
                     "is_full_extract": False,
-                    "comment": "Incremental extraction of daily orders",
                 },
-            ],
-            "databricks": {
-                "notes": [
-                    "Output will be saved to DBFS (/dbfs/data) by default",
-                    "Consider using shared clusters for development",
-                    "Use single-user clusters for production workloads",
-                    "Monitor Spark UI for performance optimization",
-                ]
-            },
+                {
+                    "source_name": "oracle_prod",
+                    "table_name": "products",
+                    "schema_name": "inventory",
+                    "is_full_extract": True,
+                },
+            ]
         }
 
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(sample_tables, f, indent=2)
+        import json
+
+        with open(json_path, "w") as f:
+            json.dump(tables_config, f, indent=2)
+
+
+class DatabricksConfigManager(ConfigManager):
+    """
+    Configuration manager optimized for Databricks environments.
+    """
+
+    def __init__(self, config_file: Optional[str] = None):
+        super().__init__(config_file)
+        self.databricks_settings = self._load_databricks_settings()
+
+    def _load_databricks_settings(self) -> Dict[str, Any]:
+        """Load Databricks-specific settings."""
+        if self.config_data and "databricks" in self.config_data:
+            return self.config_data["databricks"]
+        return {}
+
+    def get_databricks_output_path(self) -> str:
+        """Get Databricks output path."""
+        return self.databricks_settings.get("databricks_output_path", "/dbfs/data")
+
+    def get_unity_catalog_volume(self) -> Optional[str]:
+        """Get Unity Catalog volume if configured."""
+        return self.databricks_settings.get("unity_catalog_volume")
+
+    def should_use_existing_spark(self) -> bool:
+        """Check if should use existing Spark session."""
+        return self.databricks_settings.get("use_existing_spark", True)
